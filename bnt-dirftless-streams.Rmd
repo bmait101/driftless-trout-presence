@@ -91,8 +91,10 @@ num.of.bnt.wbics <-
 ### calculate % streams with BNT
 
 ```{r, message=FALSE}
-percent.wbics.w.bnt <- round((num.of.bnt.wbics/num.of.wbics) * 100, digits = 2)
-percent.wbics24k.w.bnt <- round((num.of.bnt.wbics/num.of.wbics.24k) * 100, digits = 2)
+(percent.wbics.w.bnt <- round((num.of.bnt.wbics/num.of.wbics) * 100, digits = 2))
+
+(percent.wbics24k.w.bnt <- round((num.of.bnt.wbics/num.of.wbics.24k) * 100, digits = 2) )
+
 ```
 
 ## Results
