@@ -17,6 +17,9 @@ library(sf)
 
 ## Data
 
+**NOTE:** WI 24k Hydrogrodatabase data is available from [this
+link](https://data-wi-dnr.opendata.arcgis.com/datasets/wi-dnr::24k-hydro-flowlines-rivers-streams/about).
+
 ``` r
 trout_sites_VA <- read_rds(here("trout-sites-24K-VA.rds"))
 
@@ -106,5 +109,7 @@ num.of.bnt.wbics <-
 
 In the Driftless Ecoregion of Wisconsin, 84.99% of surveyed wbics have
 Brown Trout present, while 32.14% of *all* wbics present in the 24k
-Hydro Geodatabase have Brown Trout present. **NOTE:** Result is based on
-survey data collected from 1994-2020 by Fisheries Management.
+Hydro Geodatabase have Brown Trout present.
+
+**NOTE:** Result is based on survey data collected from 1994-2020 by
+Fisheries Management.
