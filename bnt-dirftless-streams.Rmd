@@ -27,10 +27,20 @@ trout_data <-
   here("fmdb_fish_trout.rds") %>% 
   read_rds()
 
+trout_surveys <- 
+  here("fmdb_surveys_trout.rds") %>% 
+  read_rds() %>% 
+  distinct(site.seq.no, .keep_all = TRUE) %>% 
+  select(site.seq.no, latitude, longitude) 
+
 trout_sites_VA <- 
   here("trout-sites-24K-VA.rds") %>% 
   read_rds()
 
+hydro_lines_classed <- 
+  here("classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
+  st_read() %>% 
+  st_transform(crs = 3071) 
 
 driftless_poly <- 
   here("ecoregions","wi_eco_l3.shp") %>% 
@@ -54,10 +64,14 @@ hydro_lines_driftless <-
   hydro_lines %>% 
   st_intersection(driftless_poly)
 
+hydro_lines_classed_drift <- 
+  hydro_lines_classed %>% 
+  st_intersection(driftless_poly)
+
 data <- 
   trout_data %>% 
   left_join(trout_sites_VA, by = "site.seq.no") %>% 
-  select(county, waterbody.name, wbic, survey.year, survey.seq.no, visit.fish.seq.no, 
+  select(county, waterbody.name, wbic, survey.year, survey.seq.no, visit.fish.seq.no, site.seq.no,
          species, number.of.fish, c_eco, hydroid) %>% 
   filter(c_eco == "52") %>% 
   filter(species == "brown_trout")
@@ -68,27 +82,18 @@ data <-
 
 ggplot() + 
   geom_sf(data = driftless_poly) + 
-  geom_sf(data = hydro_lines_driftless)
+  geom_sf(data = hydro_lines_classed_drift, aes(color = TROUT_CLAS))
 
 ```
-
 
 
 ### get number of wbics
 
 ```{r}
-# number of distinct wbics
+# number of distinct wbics in classified streams
 num.of.wbics.24k <- 
-  hydro_lines %>% 
-  semi_join(data, by = "hydroid") %>% 
-  distinct(RIVER_SYS_WBIC) %>% 
-  pull() %>% 
-  length()
-
-# number of distinct wbics
-num.of.wbics.24k <- 
-  hydro_lines_driftless %>% 
-  distinct(RIVER_SYS_WBIC) %>% 
+  hydro_lines_classed_drift %>% 
+  distinct(WBIC) %>% 
   pull() %>% 
   length()
 ```
@@ -102,21 +107,40 @@ num.of.wbics <-
   length()
 ```
 
-
 ### get number of wbics with BNT
 
 ```{r, message=FALSE}
-# number of wbics with BNT
-num.of.bnt.wbics <-
+bnt_pa <-
   data %>% 
-  group_by(wbic) %>% 
+  group_by(wbic, site.seq.no) %>% 
   summarise(n = sum((number.of.fish))) %>% 
   mutate(n = if_else(n == 0, 0, 1)) %>% 
+  left_join(trout_surveys, by = "site.seq.no") %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
+  st_transform(crs = 3071)
+
+
+num.of.bnt.wbics <- 
+  bnt_pa %>% 
   filter(n == 1) %>% 
   distinct(wbic) %>% 
   pull() %>% 
   length()
 ```
+
+```{r plot data}
+ggplot() + 
+  geom_sf(data = driftless_poly) +
+  geom_sf(data = bnt_pa)
+
+ggplot() + 
+  geom_sf(data = driftless_poly) + 
+  geom_sf(data = hydro_lines_classed_drift, aes(color = TROUT_CLAS)) +
+  geom_sf(data = bnt_pa, aes(fill = as.factor(n)), shape = 21, size = 0.5, alpha = 0.5)
+
+```
+
+
 
 ### calculate % streams with BNT
 
@@ -129,6 +153,6 @@ num.of.bnt.wbics <-
 
 ## Results
 
-In the Driftless Ecoregion of Wisconsin, `r percent.wbics.w.bnt`% of surveyed wbics have Brown Trout present, while `r percent.wbics24k.w.bnt`% of *all* wbics present in the 24k Hydro Geodatabase have Brown Trout present.  
+In the Driftless Ecoregion of Wisconsin, `r percent.wbics.w.bnt`% of surveyed wbics have Brown Trout present, while `r percent.wbics24k.w.bnt`% of *all* wbics classified as trout streans have Brown Trout present.  
 
 **NOTE:** Result is based on survey data collected from 1994-2020 by Fisheries Management. 
