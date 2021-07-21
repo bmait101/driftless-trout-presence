@@ -22,36 +22,57 @@ library(sf)
 **NOTE:** WI 24k Hydrogrodatabase data is available from [this link](https://data-wi-dnr.opendata.arcgis.com/datasets/wi-dnr::24k-hydro-flowlines-rivers-streams/about). 
 
 ```{r read-data, cache=TRUE, warning=FALSE}
-trout_sites_VA <- read_rds(here("trout-sites-24K-VA.rds"))
 
-trout_data <- read_rds(here("fmdb_fish_trout.rds"))
+trout_data <- 
+  here("fmdb_fish_trout.rds") %>% 
+  read_rds()
+
+trout_sites_VA <- 
+  here("trout-sites-24K-VA.rds") %>% 
+  read_rds()
+
+
+driftless_poly <- 
+  here("ecoregions","wi_eco_l3.shp") %>% 
+  st_read() %>% 
+  st_transform(crs = 3071) %>% 
+  filter(US_L3CODE == "52")
 
 hydro_lines <- 
   readOGR(
     dsn = here("24K_Hydro.gdb"), 
     layer = "WD_HYDRO_FLOWLINE_LN_24K") %>% 
-  st_as_sf()
+  st_as_sf() %>% 
+  mutate(hydroid = as.character(HYDROID))
+
 ```
 
 
 ```{r prep-data, cache=TRUE}
-# clean hydro lines
-hydro_lines <- 
+
+hydro_lines_driftless <- 
   hydro_lines %>% 
-  mutate(hydroid = as.character(HYDROID))
+  st_intersection(driftless_poly)
 
-# link trout data with 24k hydro for ecoregion
-data <- left_join(trout_data, trout_sites_VA, by = "site.seq.no")
-
-# filter data frame
 data <- 
-  data %>% 
+  trout_data %>% 
+  left_join(trout_sites_VA, by = "site.seq.no") %>% 
   select(county, waterbody.name, wbic, survey.year, survey.seq.no, visit.fish.seq.no, 
          species, number.of.fish, c_eco, hydroid) %>% 
   filter(c_eco == "52") %>% 
   filter(species == "brown_trout")
 
 ```
+
+```{r plot data}
+
+ggplot() + 
+  geom_sf(data = driftless_poly) + 
+  geom_sf(data = hydro_lines_driftless)
+
+```
+
+
 
 ### get number of wbics
 
@@ -60,6 +81,13 @@ data <-
 num.of.wbics.24k <- 
   hydro_lines %>% 
   semi_join(data, by = "hydroid") %>% 
+  distinct(RIVER_SYS_WBIC) %>% 
+  pull() %>% 
+  length()
+
+# number of distinct wbics
+num.of.wbics.24k <- 
+  hydro_lines_driftless %>% 
   distinct(RIVER_SYS_WBIC) %>% 
   pull() %>% 
   length()
