@@ -128,19 +128,6 @@ num.of.bnt.wbics <-
   length()
 ```
 
-```{r plot data}
-ggplot() + 
-  geom_sf(data = driftless_poly) +
-  geom_sf(data = bnt_pa)
-
-ggplot() + 
-  geom_sf(data = driftless_poly) + 
-  geom_sf(data = hydro_lines_classed_drift, aes(color = TROUT_CLAS)) +
-  geom_sf(data = bnt_pa, aes(fill = as.factor(n)), shape = 21, size = 0.5, alpha = 0.5)
-
-```
-
-
 
 ### calculate % streams with BNT
 
@@ -156,3 +143,23 @@ ggplot() +
 In the Driftless Ecoregion of Wisconsin, `r percent.wbics.w.bnt`% of surveyed wbics have Brown Trout present, while `r percent.wbics24k.w.bnt`% of *all* wbics classified as trout streans have Brown Trout present.  
 
 **NOTE:** Result is based on survey data collected from 1994-2020 by Fisheries Management. 
+
+```{r plot data}
+ggplot() + 
+  geom_sf(data = driftless_poly) + 
+  geom_sf(data = hydro_lines_classed_drift, aes(color = TROUT_CLAS)) +
+  geom_sf(data = bnt_pa, aes(fill = as.factor(n)), shape = 21, size = 1, alpha = 0.5) + 
+  scale_fill_manual(values = c("black", "white")) + 
+  labs(
+    title = "How common are Brown Trout in Wisconsin's Driftless Area?",
+    subtitle = glue::glue('Brown Trout are present in {percent.wbics.w.bnt}% of surveyed WBICs in the area, \n in {percent.wbics24k.w.bnt}% of WBICs which are classified trout streams.'),
+    color = "Stream Class", fill = "BNT Presence") + 
+  theme_void()
+
+path <- here::here("driftless_bnt_presence")
+ggsave(glue::glue("{path}.pdf"), width = 6.5, height = 6, device = cairo_pdf)
+pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
+            filenames = glue::glue("{path}.png"),
+            format = "png", dpi = 300)
+  
+```
