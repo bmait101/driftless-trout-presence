@@ -24,26 +24,26 @@ library(sf)
 ```{r read-data, cache=TRUE, warning=FALSE}
 
 trout_data <- 
-  here("fmdb_fish_trout.rds") %>% 
+  here("data", "fmdb_fish_trout.rds") %>% 
   read_rds()
 
 trout_surveys <- 
-  here("fmdb_surveys_trout.rds") %>% 
+  here("data", "fmdb_surveys_trout.rds") %>% 
   read_rds() %>% 
   distinct(site.seq.no, .keep_all = TRUE) %>% 
   select(site.seq.no, latitude, longitude) 
 
 trout_sites_VA <- 
-  here("trout-sites-24K-VA.rds") %>% 
+  here("data", "trout-sites-24K-VA.rds") %>% 
   read_rds()
 
 hydro_lines_classed <- 
-  here("classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
+  here("data", "classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
   st_read() %>% 
   st_transform(crs = 3071) 
 
 driftless_poly <- 
-  here("ecoregions","wi_eco_l3.shp") %>% 
+  here("data", "ecoregions","wi_eco_l3.shp") %>% 
   st_read() %>% 
   st_transform(crs = 3071) %>% 
   filter(US_L3CODE == "52")
