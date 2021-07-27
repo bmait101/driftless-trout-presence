@@ -206,6 +206,14 @@ n.wbics.classed.surveyed <-
   distinct(wbic) %>% 
   pull() %>% 
   length()
+
+n.wbics.classed12.surveyed <- 
+  df_surveys_drift_classed %>% 
+  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
+  st_drop_geometry() %>% 
+  distinct(wbic) %>% 
+  pull() %>% 
+  length()
 ```
 
 
@@ -315,6 +323,12 @@ n.wbics.bnt.p <-
 
 ```{r}
 (percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.classed.surveyed) * 100, digits = 2))
+```
+
+## 4. Percentage of survyed streams in which brown trout are present
+
+```{r}
+(percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.classed12.surveyed) * 100, digits = 2))
 ```
 
 
