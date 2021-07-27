@@ -65,21 +65,23 @@ hydro_lines <-
 
 ```{r prep-data, cache=TRUE}
 
+# clip 24k flowlines to the driftless region
 hydro_lines_driftless <- 
   hydro_lines %>% 
   st_intersection(driftless_poly)
 
+# clip the classified trout streams to driftless region
 hydro_lines_classed_drift <- 
   hydro_lines_classed %>% 
   st_intersection(driftless_poly)
 
+# filter fish data for driftless area
 data <- 
   trout_data %>% 
   left_join(trout_sites_VA, by = "site.seq.no") %>% 
   select(county, waterbody.name, wbic, survey.year, survey.seq.no, visit.fish.seq.no, site.seq.no,
          species, number.of.fish, c_eco, hydroid) %>% 
-  filter(c_eco == "52") %>% 
-  filter(species == "brown_trout")
+  filter(c_eco == "52") 
 
 ```
 
