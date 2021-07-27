@@ -1,155 +1,326 @@
 ---
-title: "Driftless BNT streams"
+title: "Driftless trout streams"
 author: "Bryan Maitland"
 date: "7 July 2021"
 output: github_document
 ---
 
-## Overview
-
-What is the percentage of Driftless ecoregion streams (by WBIC for streams for which we have survey data) in which brown trout are present?
-
 ```{r prep, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(here)
+library(wdnr.fmdb)
+set_fmdb_credentials()
 library(rgdal)  
 library(sf)
+library(glue)
 ```
 
 
 ## Data
 
-**NOTE:** WI 24k Hydrogrodatabase data is available from [this link](https://data-wi-dnr.opendata.arcgis.com/datasets/wi-dnr::24k-hydro-flowlines-rivers-streams/about). 
+### stream lines and ecoregion polygons
 
 ```{r read-data, cache=TRUE, warning=FALSE}
-# load raw fish counts
-trout_data <- 
-  here("data", "fmdb_fish_trout.rds") %>% 
-  read_rds()
-
-# load fish survey data
-trout_surveys <- 
-  here("data", "fmdb_surveys_trout.rds") %>% 
-  read_rds() %>% 
-  distinct(site.seq.no, .keep_all = TRUE) %>% 
-  select(site.seq.no, latitude, longitude) 
 
 # load site attributes
-trout_sites_VA <- 
-  here("data", "trout-sites-24K-VA.rds") %>% 
-  read_rds()
+# trout_sites_VA <- 
+#   here("data", "trout-sites-24K-VA.rds") %>% 
+#   read_rds() %>% 
+#   select(site.seq.no, c_eco, hydroid)
 
 # load classified trout stream lines
-hydro_lines_classed <- 
+lines_classed <- 
   here("data", "classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
   st_read() %>% 
   st_transform(crs = 3071) 
 
 # load driftless ecoregion polygon
-driftless_poly <- 
+poly_driftless <- 
   here("data", "ecoregions","wi_eco_l3.shp") %>% 
   st_read() %>% 
   st_transform(crs = 3071) %>% 
   filter(US_L3CODE == "52")
 
 # load full 24K flowline layer
-hydro_lines <- 
-  readOGR(
-    dsn = here("data", "24K_Hydro.gdb"), 
-    layer = "WD_HYDRO_FLOWLINE_LN_24K") %>% 
-  st_as_sf() %>% 
-  mutate(hydroid = as.character(HYDROID))
+# strms_whd <- 
+#   readOGR(
+#     dsn = here("data", "24K_Hydro.gdb"), 
+#     layer = "WD_HYDRO_FLOWLINE_LN_24K") %>% 
+#   st_as_sf() %>% 
+#   mutate(hydroid = as.character(HYDROID))
 
 ```
 
+### FMDB surveys and efforts
+
+Download all surveys from 1994-2020 on streams using backpack and stream shockers:
+
+```{r pull-raw-surveys-efforts, cache=TRUE}
+
+start <- Sys.time()
+
+# params for pulling surveys and efforts
+yrs <- list(1994:1999,2000:2005,2006:2011,2012:2016,2017:2020)  
+waterbody_types <- c( "wadable_stream", "non-wadable_stream", "stream")
+gear_types <- c("stream_shocker","backpack_shocker")
+
+# set loop output
+full.s <- list()
+full.e <- list()
+
+# run loop
+for (y in seq_along(yrs)) {
+  
+  surveys <- get_fmdb_surveys(year = yrs[[y]], 
+                              waterbody_type = waterbody_types) 
+  
+  efforts <- get_fmdb_efforts(year = yrs[[y]], 
+                        waterbody_type = waterbody_types,
+                        gear = gear_types)
+  full.s[[y]] <- surveys
+  full.e[[y]] <- efforts
+  
+}
+
+# bind data together
+df_surveys_raw <- bind_rows(full.s)
+df_efforts_raw <- bind_rows(full.e) 
+
+
+Sys.time() - start  # ~ 48 seconds
+
+# clean up 
+rm(full.e); rm(full.s); rm(yrs); rm(y); rm(start)
+rm(efforts); rm(surveys)
+```
+
+### filter surveys for proofed data
+
+```{r filter-proofed-data, eval=TRUE}
+
+# list of good surveys status
+targ.survs <- c(
+  "data_entry_complete_and_proofed",
+  "historical_data_complete_and_proofed",
+  "historical_data_entry_complete",
+  "historical_data_load_status_unknown"
+  )
+
+# filter surveys by unique efforts and status
+df_surveys <-
+  df_surveys_raw %>% 
+  filter(survey.seq.no %in% unique(df_efforts_raw$survey.seq.no)) %>% 
+  filter(survey.status %in% targ.survs)
+
+# filter effort
+df_efforts <- 
+  df_efforts_raw %>% 
+  filter(survey.seq.no %in% df_surveys$survey.seq.no) %>%
+  filter(site.seq.no != 315)
+
+df_surveys <- 
+  df_surveys %>% 
+  filter(survey.seq.no %in% unique(df_efforts$survey.seq.no))
+
+```
+
+### filter/clip data to driftless
 
 ```{r prep-data, cache=TRUE}
 
 # clip 24k flowlines to the driftless region
-hydro_lines_driftless <- 
-  hydro_lines %>% 
-  st_intersection(driftless_poly)
+# hydro_lines_driftless <- 
+#   hydro_lines %>% 
+#   st_intersection(driftless_poly)
 
 # clip the classified trout streams to driftless region
-hydro_lines_classed_drift <- 
-  hydro_lines_classed %>% 
-  st_intersection(driftless_poly)
+lines_classed_drift <- 
+  lines_classed %>% 
+  st_intersection(poly_driftless)
 
-# filter fish data for driftless area
-data <- 
-  trout_data %>% 
-  left_join(trout_sites_VA, by = "site.seq.no") %>% 
-  select(county, waterbody.name, wbic, survey.year, survey.seq.no, visit.fish.seq.no, site.seq.no,
-         species, number.of.fish, c_eco, hydroid) %>% 
-  filter(c_eco == "52") 
+# clip surveys to driftless to pull fish data
+df_surveys_drift <- 
+  df_surveys %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
+  st_transform(crs = 3071) %>% 
+  st_intersection(poly_driftless)
 
+# filter efforts to driftless region
+df_efforts_drift <- 
+  df_efforts %>% 
+  filter(survey.seq.no %in% df_surveys_drift$survey.seq.no)
+
+# get survey site locations in driftless
+df_surveys_drift_locs <- 
+  df_surveys_drift %>% 
+  distinct(site.seq.no, .keep_all = TRUE) %>% 
+  select(wbic, site.seq.no) 
 ```
 
-```{r plot data}
-
-ggplot() + 
-  geom_sf(data = driftless_poly) + 
-  geom_sf(data = hydro_lines_classed_drift, aes(color = TROUT_CLAS))
-
-```
-
-
-### get number of wbics
+### count of surveys 1994-2020
 
 ```{r}
-# number of distinct wbics in classified streams
-num.of.wbics.24k <- 
-  hydro_lines_classed_drift %>% 
+# count of surveys in driftless
+n.surveys <- 
+  df_surveys_drift %>% 
+  distinct(survey.seq.no) %>% 
+  pull() %>% 
+  length()
+```
+
+### count of distinct wbics: all driftless survey data
+
+```{r}
+n.wbics.surveyed <- 
+  df_surveys_drift %>% 
+  distinct(wbic) %>% 
+  pull() %>% 
+  length()
+
+```
+
+### count of distinct wbics: classified stream data
+
+```{r}
+n.wbics.classified <- 
+  lines_classed_drift %>% 
   distinct(WBIC) %>% 
   pull() %>% 
   length()
 ```
 
+### count of distinct wbics: surveys on classified streams
+
+Need to spatial join survey sites to stream lines for classes
+
 ```{r}
-# number of distinct surveys wbics
-num.of.wbics <- 
-  data %>% 
+
+df_surveys_drift_classed <- 
+  df_surveys_drift_locs %>% 
+  st_join(lines_classed_drift, join = nngeo::st_nn, k = 1, maxdist = 100)
+
+n.wbics.classed.surveyed <- 
+  df_surveys_drift_classed %>% 
+  filter(!is.na(TROUT_CLAS)) %>% 
+  st_drop_geometry() %>% 
   distinct(wbic) %>% 
   pull() %>% 
   length()
 ```
 
-### get number of wbics with BNT
+
+### plot surveys 
+
+```{r plot data}
+ggplot() + 
+  geom_sf(data = poly_driftless) + 
+  geom_sf(data = lines_classed_drift, aes(color = TROUT_CLAS), show.legend = "line") + 
+  geom_sf(data = df_surveys_drift_classed, aes(fill = TROUT_CLAS), show.legend = "point", 
+          size = 1, alpha = 0.5, shape = 21) + 
+  scale_colour_manual(values = c("#53DC4D", "#00C5ff", "#004DA8"), 
+                      guide = guide_legend(override.aes = list(linetype = c("solid", "solid","solid"), 
+                                                               shape = c(NA, NA, NA),
+                                                               size = c(1,1,1)))) +
+  scale_fill_manual(values = c("#53DC4D", "#00C5ff", "#004DA8", "grey"), 
+                    guide = guide_legend(override.aes = list(linetype = "blank", 
+                                                             shape = 21, 
+                                                             size = 2))) +
+  labs(
+    title = "Driftless Area survey locations", color = "Stream Class", fill = "Survey Site Class"
+    ) +
+  theme_void()
+```
+
+
+### downlaod fishraw data
+
+```{r pull-raw-fish, cache=TRUE}
+
+start <- Sys.time()
+
+# using efforts, download fish data 1000 efforts at a time
+vs <- unique(df_efforts_drift$visit.fish.seq.no) 
+
+# split efforts in 1000 chunks
+chunks <- split(vs, ceiling(seq_along(vs)/1000))  
+
+# set loop output
+full.dat <- list()
+
+for (i in (1:length(chunks))) {  
+  d <- get_fmdb_fishraw(visit_seq = chunks[[i]])
+  full.dat[[i]] <- d
+}
+
+df_fish_raw <- bind_rows(full.dat)
+
+# Check deleted rows and warnings
+length_deleted_rows 
+length_warning_rows  # 
+
+# clean up environment
+rm(vs); rm(chunks); rm(full.dat); rm(d); rm(i)
+# rm(length_deleted_rows)
+# rm(length_warning_rows)
+
+Sys.time() - start  # ~ 3 min minutes
+
+```
+
+### filter fishraw for dirftless
+```{r}
+fish_data <- df_fish_raw
+```
+
+
+## counts
+
+### count of surveyed streams in which brown trout are present
 
 ```{r, message=FALSE}
+# convert catch data to presence/abscence
 bnt_pa <-
-  data %>% 
+  fish_data %>% 
+  filter(species == "brown_trout") %>% 
   group_by(wbic, site.seq.no) %>% 
-  summarise(n = sum((number.of.fish))) %>% 
+  summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
   mutate(n = if_else(n == 0, 0, 1)) %>% 
-  left_join(trout_surveys, by = "site.seq.no") %>% 
-  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
-  st_transform(crs = 3071)
+  # join survey metadata for coords
+  left_join(df_surveys_drift_locs %>% select(-wbic), by = "site.seq.no") 
 
-
-num.of.bnt.wbics <- 
+# count of streams in which brown trout were present
+n.wbics.bnt.p <- 
   bnt_pa %>% 
   filter(n == 1) %>% 
+  select(-geometry) %>% 
   distinct(wbic) %>% 
   pull() %>% 
   length()
 ```
 
 
-### calculate % streams with BNT
+## 1. Percentage of survyed streams in which brown trout are present
 
-```{r, message=FALSE}
-(percent.wbics.w.bnt <- round((num.of.bnt.wbics/num.of.wbics) * 100, digits = 2))
-
-(percent.wbics24k.w.bnt <- round((num.of.bnt.wbics/num.of.wbics.24k) * 100, digits = 2) )
-
+```{r}
+(percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.surveyed) * 100, digits = 2))
 ```
 
-## Results
+## 2. Percentage of survyed streams in which brown trout are present
 
-In the Driftless Ecoregion of Wisconsin, `r percent.wbics.w.bnt`% of surveyed wbics have Brown Trout present, while `r percent.wbics24k.w.bnt`% of *all* wbics classified as trout streans have Brown Trout present.  
+```{r}
+(percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.classified) * 100, digits = 2))
+```
 
-**NOTE:** Result is based on survey data collected from 1994-2020 by Fisheries Management. 
+## 3. Percentage of survyed streams in which brown trout are present
+
+```{r}
+(percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.classed.surveyed) * 100, digits = 2))
+```
+
+
+
+
+
 
 ```{r plot data}
 ggplot() + 
@@ -159,7 +330,7 @@ ggplot() +
   scale_fill_manual(values = c("black", "white")) + 
   labs(
     title = "How common are Brown Trout in Wisconsin's Driftless Area?",
-    subtitle = glue::glue('Brown Trout are present in {percent.wbics.w.bnt}% of surveyed WBICs in the area, \n in {percent.wbics24k.w.bnt}% of WBICs which are classified trout streams.'),
+    subtitle = glue('Brown Trout are present in {percent.wbics.w.bnt}% of surveyed WBICs in the area, \n in {percent.wbics24k.w.bnt}% of WBICs which are classified trout streams.'),
     color = "Stream Class", fill = "BNT Presence") + 
   theme_void()
 
@@ -170,3 +341,7 @@ pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
             format = "png", dpi = 300)
   
 ```
+
+
+
+
