@@ -22,35 +22,40 @@ library(sf)
 **NOTE:** WI 24k Hydrogrodatabase data is available from [this link](https://data-wi-dnr.opendata.arcgis.com/datasets/wi-dnr::24k-hydro-flowlines-rivers-streams/about). 
 
 ```{r read-data, cache=TRUE, warning=FALSE}
-
+# load raw fish counts
 trout_data <- 
   here("data", "fmdb_fish_trout.rds") %>% 
   read_rds()
 
+# load fish survey data
 trout_surveys <- 
   here("data", "fmdb_surveys_trout.rds") %>% 
   read_rds() %>% 
   distinct(site.seq.no, .keep_all = TRUE) %>% 
   select(site.seq.no, latitude, longitude) 
 
+# load site attributes
 trout_sites_VA <- 
   here("data", "trout-sites-24K-VA.rds") %>% 
   read_rds()
 
+# load classified trout stream lines
 hydro_lines_classed <- 
   here("data", "classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
   st_read() %>% 
   st_transform(crs = 3071) 
 
+# load driftless ecoregion polygon
 driftless_poly <- 
   here("data", "ecoregions","wi_eco_l3.shp") %>% 
   st_read() %>% 
   st_transform(crs = 3071) %>% 
   filter(US_L3CODE == "52")
 
+# load full 24K flowline layer
 hydro_lines <- 
   readOGR(
-    dsn = here("24K_Hydro.gdb"), 
+    dsn = here("data", "24K_Hydro.gdb"), 
     layer = "WD_HYDRO_FLOWLINE_LN_24K") %>% 
   st_as_sf() %>% 
   mutate(hydroid = as.character(HYDROID))
