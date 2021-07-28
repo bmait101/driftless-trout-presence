@@ -5,6 +5,8 @@ date: "7 July 2021"
 output: github_document
 ---
 
+## Overview
+
 ```{r prep, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(here)
@@ -292,7 +294,7 @@ ggplot() +
 ```{r load-raw-fish-data}
 df_fish_raw <- 
   here("data", "fish_raw_20210727.rds") %>% 
-  read_rds()
+  read_rds() 
 ```
 
 
@@ -300,24 +302,181 @@ df_fish_raw <-
 
 ### count of surveyed streams in which brown trout are present
 
-```{r, message=FALSE}
-# convert catch data to presence/abscence
-df_bnt_pa <-
-  df_fish_raw %>% 
-  filter(species == "brown_trout") %>% 
-  group_by(wbic, site.seq.no) %>% 
-  summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
-  mutate(n = if_else(n == 0, 0, 1)) %>% 
-  # join survey metadata for coords
-  left_join(df_surveys_drift_locs %>% select(-wbic), by = "site.seq.no") 
+Must make a presence-absence matrix. Assuming zeros where not present. 
 
-df_bnt_pa %>% 
-  count(n)
+
+```{r zero-caps, message=FALSE}
+df_no_fish <- 
+  df_fish_raw %>% 
+  filter(species == "no_fish_captured") 
+```
+
+```{r viz-zero-caps}
+# map of locations
+p.surv.locs <- 
+  # prep data
+  df_no_fish %>% 
+  # distinct(site.seq.no, .keep_all = TRUE) %>% 
+  left_join(df_surveys_drift_locs, by = "site.seq.no") %>% 
+  st_as_sf() %>% 
+  # plot
+  ggplot() + 
+  geom_sf(
+    data = poly_driftless, 
+    color = "black", alpha = 0) + 
+  geom_sf(
+    aes(fill = target.species), 
+    shape = 21, size = 2, color = "black", alpha = 0.75)  +
+  scale_fill_viridis_d(option = "D") + 
+  labs(x = "", y = "", 
+       title = "Surveys where species = no fish captured", 
+       fill = "Target species") +  
+  theme_minimal() + 
+  theme(axis.text.x = element_blank(), 
+        axis.text.y = element_blank())
+
+# target species
+p.tally.targ.spp <-
+  df_no_fish %>% 
+    group_by(target.species) %>% 
+    tally() %>% 
+    arrange(desc(n)) %>% 
+    mutate(
+      target.species = 
+        stringr::str_replace_all(target.species, "_", " ")
+      ) %>% 
+    select('Target species' = target.species, Count = n) 
+
+# survey purpose
+p.tally.prupose <-
+  df_no_fish %>% 
+    group_by(primary.survey.purpose) %>% 
+    tally() %>% 
+    arrange(desc(n)) %>% 
+    mutate(
+      primary.survey.purpose = 
+        stringr::str_replace_all(primary.survey.purpose, "_", " ")
+      ) %>% 
+    select('Primary Survey Purpose' = primary.survey.purpose, Count = n) 
+```
+
+```{r df-of-zeros, echo=FALSE}
+
+df_trout_0s <-
+  bind_rows(
+    # all species and game fish targets
+    df_fish_raw %>%
+      filter(target.species %in% c("all_species","gamefish_species"), 
+             species == "no_fish_captured") %>%
+      mutate(
+        species = "brook_trout",
+        number.of.fish = 0,
+        ),
+    df_fish_raw %>%
+      filter(target.species %in% c("all_species","gamefish_species"), 
+             species == "no_fish_captured") %>%
+      mutate(
+        species = "brown_trout",
+        number.of.fish = 0, 
+        ),
+    # brook trout targets
+    df_fish_raw %>%
+      filter(target.species %in% c("brook_trout"), 
+             species == "no_fish_captured") %>%
+      mutate(
+        species = "brook_trout",
+        number.of.fish = 0, 
+        ),
+    # brown trout targets
+    df_fish_raw %>%
+      filter(target.species %in% c("brown_trout"), 
+             species == "no_fish_captured") %>%
+      mutate(
+        species = "brown_trout",
+        number.of.fish = 0, 
+        )
+  )
+
+```
+
+```{r remove-no-caps-add-zeros}
+df_fish <- 
+  df_fish_raw %>% 
+  filter(!species == "no_fish_captured") %>%
+  bind_rows(df_trout_0s) %>% 
+  filter(species %in% c("brook_trout","brown_trout","tiger_trout_(i21_x_i22)"))
+```
+
+
+```{r}
+# convert catch data to presence
+df_fish_presence <-
+  df_fish %>% 
+  group_by(wbic, site.seq.no, species) %>% 
+  summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
+  mutate(n = if_else(n > 1, 1, 0)) %>% 
+  # join survey metadata for coords/classes
+  left_join(df_surveys_drift_classed %>% 
+              select(site.seq.no, TROUT_CLAS), by = "site.seq.no") 
+
+df_fish_presence %>% 
+  count(species, n)
+
+df_fish_presence %>% 
+  count(TROUT_CLAS)
 
 # count of streams in which brown trout were present
 n.wbics.bnt.p <- 
-  df_bnt_pa %>% 
-  filter(n == 1) %>% 
+  df_fish_presence %>% 
+  filter(species == "brown_trout", n == 1) %>% 
+  select(-geometry) %>% 
+  distinct(wbic) %>% 
+  pull() %>% 
+  length()
+
+# count of 1-2 class streams in which brown trout were present
+n.wbics.bnt.p.12 <- 
+  df_fish_presence %>% 
+  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
+  filter(species == "brown_trout", n == 1) %>% 
+  select(-geometry) %>% 
+  distinct(wbic) %>% 
+  pull() %>% 
+  length()
+
+# count of streams in which brown trout were present
+n.wbics.bkt.p <- 
+  df_fish_presence %>% 
+  filter(species == "brook_trout", n == 1) %>% 
+  select(-geometry) %>% 
+  distinct(wbic) %>% 
+  pull() %>% 
+  length()
+
+# count of 1-2 class streams in which brown trout were present
+n.wbics.bkt.p.12 <- 
+  df_fish_presence %>% 
+  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
+  filter(species == "brook_trout", n == 1) %>% 
+  select(-geometry) %>% 
+  distinct(wbic) %>% 
+  pull() %>% 
+  length()
+
+# count of streams in which brown trout were present
+n.wbics.tiger.p <- 
+  df_fish_presence %>% 
+  filter(species == "tiger_trout_(i21_x_i22)", n == 1) %>% 
+  select(-geometry) %>% 
+  distinct(wbic) %>% 
+  pull() %>% 
+  length()
+
+# count of 1-2 class streams in which brown trout were present
+n.wbics.tiger.p.12 <- 
+  df_fish_presence %>% 
+  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
+  filter(species == "tiger_trout_(i21_x_i22)", n == 1) %>% 
   select(-geometry) %>% 
   distinct(wbic) %>% 
   pull() %>% 
@@ -325,28 +484,19 @@ n.wbics.bnt.p <-
 ```
 
 
-## 1. Percentage of survyed streams in which brown trout are present
-
-```{r}
-(percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.surveyed) * 100, digits = 2))
-```
-
-## 2. Percentage of survyed streams in which brown trout are present
-
-```{r}
-(percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.classified) * 100, digits = 2))
-```
-
-## 3. Percentage of survyed streams in which brown trout are present
-
 ```{r}
 (percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.classed.surveyed) * 100, digits = 2))
+(percent.wbics.bnt.present <- round((n.wbics.bnt.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
 ```
 
-## 4. Percentage of survyed streams in which brown trout are present
+```{r}
+(percent.wbics.bkt.present <- round((n.wbics.bkt.p/n.wbics.classed.surveyed) * 100, digits = 2))
+(percent.wbics.bkt.present <- round((n.wbics.bkt.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
+```
 
 ```{r}
-(percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.classed12.surveyed) * 100, digits = 2))
+(percent.wbics.bkt.present <- round((n.wbics.tiger.p/n.wbics.classed.surveyed) * 100, digits = 2))
+(percent.wbics.bkt.present <- round((n.wbics.tiger.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
 ```
 
 
@@ -354,14 +504,15 @@ n.wbics.bnt.p <-
 ggplot() + 
   geom_sf(data = poly_driftless) + 
   geom_sf(data = lines_classed_drift, aes(color = TROUT_CLAS)) +
-  geom_sf(data = df_bnt_pa %>% st_as_sf(), 
+  geom_sf(data = df_fish_presence %>% st_as_sf(), 
           aes(fill = as.factor(n)), 
           shape = 21, size = 1, alpha = 0.5) + 
   scale_fill_manual(values = c("black", "white")) + 
+  facet_wrap(vars(species)) +
   labs(
-    title = "How common are Brown Trout in Wisconsin's Driftless Area?",
+    title = "How common are trout in Wisconsin's Driftless Area?",
     color = "Stream Class", 
-    fill = "BNT Presence") + 
+    fill = "Trout Presence") + 
   theme_void()
 
 path <- here::here("driftless_bnt_presence")
