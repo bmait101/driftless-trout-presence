@@ -234,9 +234,11 @@ n.wbics.classified <-
 
 #### join site locations to nearest classified flowline to get a site's stream class:
 ```{r nn-spatial-join-sites-to-lines, cache=TRUE}
-df_surveys_drift_classed <- 
-  df_surveys_drift_locs %>% 
-  st_join(lines_classed_drift, join = nngeo::st_nn, k = 1, maxdist = 100)
+# df_surveys_drift_classed <- 
+#   df_surveys_drift_locs %>% 
+#   st_join(lines_classed_drift, join = nngeo::st_nn, k = 1, maxdist = 100)
+# write_rds(df_surveys_drift_classed, here("data", "df_surveys_drift_classed.rds"))
+df_surveys_drift_classed <- here("data", "df_surveys_drift_classed.rds") %>% read_rds()
 ```
 
 #### count of classificed wbics that have been surveyed:
