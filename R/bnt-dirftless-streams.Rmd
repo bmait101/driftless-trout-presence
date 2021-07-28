@@ -513,7 +513,7 @@ n.wbics.tiger.p.12 <-
 
 ### plot presence/absence
 
-```{r fig.align='center', echo=FALSE, fig.width=8}
+```{r fig.align='center', echo=FALSE, fig.width=10}
 panel_labels <- c(
   `brook_trout` = glue("Brook Trout ({percent.wbics.bkt.present}%)"),
   `brown_trout` = glue("Brown Trout ({percent.wbics.bnt.present}%)"),
