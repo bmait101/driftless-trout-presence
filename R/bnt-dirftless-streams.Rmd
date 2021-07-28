@@ -222,10 +222,11 @@ n.wbics.classed12.surveyed <-
   st_drop_geometry() %>% 
   distinct(wbic) %>% 
   pull() %>% 
-  length()
+  length() %>% 
+  print()
 ```
 
-### plot surveys 
+### plot driftless surveys and classed streams
 
 ```{r plot data}
 ggplot() + 
@@ -234,13 +235,18 @@ ggplot() +
   geom_sf(data = df_surveys_drift_classed, aes(fill = TROUT_CLAS), show.legend = "point", 
           size = 1, alpha = 0.5, shape = 21) + 
   scale_colour_manual(values = c("#53DC4D", "#00C5ff", "#004DA8"), 
-                      guide = guide_legend(override.aes = list(linetype = c("solid", "solid","solid"), 
-                                                               shape = c(NA, NA, NA),
-                                                               size = c(1,1,1)))) +
+                      guide = guide_legend(
+                        override.aes = list(
+                          linetype = c("solid", "solid","solid"), 
+                          shape = c(NA, NA, NA),
+                          size = c(1,1,1)))
+                      ) +
   scale_fill_manual(values = c("#53DC4D", "#00C5ff", "#004DA8", "grey"), 
-                    guide = guide_legend(override.aes = list(linetype = "blank", 
-                                                             shape = 21, 
-                                                             size = 2))) +
+                    guide = guide_legend(
+                      override.aes = list(linetype = "blank", 
+                                          shape = 21, 
+                                          size = 2))
+                    ) +
   labs(
     title = "Driftless Area survey locations", color = "Stream Class", fill = "Survey Site Class"
     ) +
@@ -251,41 +257,42 @@ ggplot() +
 ### downlaod fishraw data
 
 ```{r pull-raw-fish, cache=TRUE}
-
-start <- Sys.time()
-
-# using efforts, download fish data 1000 efforts at a time
-vs <- unique(df_efforts_drift$visit.fish.seq.no) 
-
-# split efforts in 1000 chunks
-chunks <- split(vs, ceiling(seq_along(vs)/1000))  
-
-# set loop output
-full.dat <- list()
-
-for (i in (1:length(chunks))) {  
-  d <- get_fmdb_fishraw(visit_seq = chunks[[i]])
-  full.dat[[i]] <- d
-}
-
-df_fish_raw <- bind_rows(full.dat)
-
-# Check deleted rows and warnings
-length_deleted_rows 
-length_warning_rows  # 
-
-# clean up environment
-rm(vs); rm(chunks); rm(full.dat); rm(d); rm(i)
+# start <- Sys.time()
+# 
+# # using efforts, download fish data 1000 efforts at a time
+# vs <- unique(df_efforts_drift$visit.fish.seq.no) 
+# 
+# # split efforts in 1000 chunks
+# chunks <- split(vs, ceiling(seq_along(vs)/1000))  
+# 
+# # set loop output
+# full.dat <- list()
+# 
+# for (i in (1:length(chunks))) {  
+#   d <- get_fmdb_fishraw(visit_seq = chunks[[i]])
+#   full.dat[[i]] <- d
+# }
+# 
+# df_fish_raw <- bind_rows(full.dat)
+# 
+# # Check deleted rows and warnings
+# length_deleted_rows 
+# length_warning_rows  # 
+# 
+# Sys.time() - start  # ~ 3 min minutes
+# 
+# # clean up environment
+# rm(vs); rm(chunks); rm(full.dat); rm(d); rm(i); rm(start)
 # rm(length_deleted_rows)
 # rm(length_warning_rows)
-
-Sys.time() - start  # ~ 3 min minutes
-
+# 
+# write_rds(df_fish_raw, here("data", "fish_raw_20210727.rds"))
 ```
 
-### filter fishraw for dirftless
-```{r}
-fish_data <- df_fish_raw
+```{r load-raw-fish-data}
+df_fish_raw <- 
+  here("data", "fish_raw_20210727.rds") %>% 
+  read_rds()
 ```
 
 
@@ -295,8 +302,8 @@ fish_data <- df_fish_raw
 
 ```{r, message=FALSE}
 # convert catch data to presence/abscence
-bnt_pa <-
-  fish_data %>% 
+df_bnt_pa <-
+  df_fish_raw %>% 
   filter(species == "brown_trout") %>% 
   group_by(wbic, site.seq.no) %>% 
   summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
@@ -304,9 +311,12 @@ bnt_pa <-
   # join survey metadata for coords
   left_join(df_surveys_drift_locs %>% select(-wbic), by = "site.seq.no") 
 
+df_bnt_pa %>% 
+  count(n)
+
 # count of streams in which brown trout were present
 n.wbics.bnt.p <- 
-  bnt_pa %>% 
+  df_bnt_pa %>% 
   filter(n == 1) %>% 
   select(-geometry) %>% 
   distinct(wbic) %>% 
@@ -340,23 +350,18 @@ n.wbics.bnt.p <-
 ```
 
 
-
-```{r}
-
-```
-
-
-
 ```{r plot data}
 ggplot() + 
-  geom_sf(data = driftless_poly) + 
-  geom_sf(data = hydro_lines_classed_drift, aes(color = TROUT_CLAS)) +
-  geom_sf(data = bnt_pa, aes(fill = as.factor(n)), shape = 21, size = 1, alpha = 0.5) + 
+  geom_sf(data = poly_driftless) + 
+  geom_sf(data = lines_classed_drift, aes(color = TROUT_CLAS)) +
+  geom_sf(data = df_bnt_pa %>% st_as_sf(), 
+          aes(fill = as.factor(n)), 
+          shape = 21, size = 1, alpha = 0.5) + 
   scale_fill_manual(values = c("black", "white")) + 
   labs(
     title = "How common are Brown Trout in Wisconsin's Driftless Area?",
-    subtitle = glue('Brown Trout are present in {percent.wbics.w.bnt}% of surveyed WBICs in the area, \n in {percent.wbics24k.w.bnt}% of WBICs which are classified trout streams.'),
-    color = "Stream Class", fill = "BNT Presence") + 
+    color = "Stream Class", 
+    fill = "BNT Presence") + 
   theme_void()
 
 path <- here::here("driftless_bnt_presence")
