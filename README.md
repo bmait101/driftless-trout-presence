@@ -4,4 +4,8 @@
 
 Analysis to calculate the trout presence, absence, and sympatry in the Driftless region of Wisconsin.
 
-Trout presence data comes from long-term surveys done by DNR's Bureau of Fisheries Management. 
+Trout data comes from long-term surveys done by DNR's Bureau of Fisheries Management. 
+
+[Main analysis and figures](R/bnt-dirftless-streams.md)
+
+[Infographic](R/bnt-dirftless-streams_files/unnamed-chunk-11-1.md)
