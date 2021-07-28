@@ -20,13 +20,7 @@ library(glue)
 
 ### stream lines and ecoregion polygons
 
-```{r read-data, cache=TRUE, warning=FALSE}
-
-# load site attributes
-# trout_sites_VA <- 
-#   here("data", "trout-sites-24K-VA.rds") %>% 
-#   read_rds() %>% 
-#   select(site.seq.no, c_eco, hydroid)
+```{r read-lines-polys, cache=TRUE, warning=FALSE}
 
 # load classified trout stream lines
 lines_classed <- 
@@ -55,46 +49,56 @@ poly_driftless <-
 
 Download all surveys from 1994-2020 on streams using backpack and stream shockers:
 
-```{r pull-raw-surveys-efforts, cache=TRUE}
+```{r pull-save-raw-surveys-efforts-data, cache=TRUE}
 
-start <- Sys.time()
+# start <- Sys.time()
+# 
+# # params for pulling surveys and efforts
+# yrs <- list(1994:1999,2000:2005,2006:2011,2012:2016,2017:2020)  
+# waterbody_types <- c( "wadable_stream", "non-wadable_stream", "stream")
+# gear_types <- c("stream_shocker","backpack_shocker")
+# 
+# # set loop output
+# full.s <- list()
+# full.e <- list()
+# 
+# # run loop
+# for (y in seq_along(yrs)) {
+#   
+#   surveys <- get_fmdb_surveys(year = yrs[[y]], 
+#                               waterbody_type = waterbody_types) 
+#   
+#   efforts <- get_fmdb_efforts(year = yrs[[y]], 
+#                         waterbody_type = waterbody_types,
+#                         gear = gear_types)
+#   full.s[[y]] <- surveys
+#   full.e[[y]] <- efforts
+#   
+# }
+# 
+# # bind data together
+# df_surveys_raw <- bind_rows(full.s)
+# df_efforts_raw <- bind_rows(full.e) 
+# 
+# 
+# Sys.time() - start  # ~ 48 seconds
+# 
+# # clean up 
+# rm(full.e); rm(full.s); rm(yrs); rm(y); rm(start)
+# rm(efforts); rm(surveys)
+# 
+# write_rds(df_surveys_raw, here("data", "surveys_raw_20210707.rds"))
+# write_rds(df_efforts_raw, here("data", "efforts_raw_20210707.rds"))
 
-# params for pulling surveys and efforts
-yrs <- list(1994:1999,2000:2005,2006:2011,2012:2016,2017:2020)  
-waterbody_types <- c( "wadable_stream", "non-wadable_stream", "stream")
-gear_types <- c("stream_shocker","backpack_shocker")
-
-# set loop output
-full.s <- list()
-full.e <- list()
-
-# run loop
-for (y in seq_along(yrs)) {
-  
-  surveys <- get_fmdb_surveys(year = yrs[[y]], 
-                              waterbody_type = waterbody_types) 
-  
-  efforts <- get_fmdb_efforts(year = yrs[[y]], 
-                        waterbody_type = waterbody_types,
-                        gear = gear_types)
-  full.s[[y]] <- surveys
-  full.e[[y]] <- efforts
-  
-}
-
-# bind data together
-df_surveys_raw <- bind_rows(full.s)
-df_efforts_raw <- bind_rows(full.e) 
-
-
-Sys.time() - start  # ~ 48 seconds
-
-# clean up 
-rm(full.e); rm(full.s); rm(yrs); rm(y); rm(start)
-rm(efforts); rm(surveys)
 ```
 
-### filter surveys for proofed data
+```{r read-raw-survery-efforts-data}
+df_surveys_raw <- read_rds(here("data", "surveys_raw_20210707.rds"))
+df_efforts_raw <- read_rds(here("data", "efforts_raw_20210707.rds"))
+```
+
+
+### filter surveys/efforts for proofed data
 
 ```{r filter-proofed-data, eval=TRUE}
 
@@ -122,16 +126,14 @@ df_surveys <-
   df_surveys %>% 
   filter(survey.seq.no %in% unique(df_efforts$survey.seq.no))
 
+rm(df_surveys_raw); rm(df_efforts_raw)
+
 ```
 
-### filter/clip data to driftless
 
-```{r prep-data, cache=TRUE}
+### clip data to driftless
 
-# clip 24k flowlines to the driftless region
-# hydro_lines_driftless <- 
-#   hydro_lines %>% 
-#   st_intersection(driftless_poly)
+```{r clip-data-to-driftless, cache=TRUE}
 
 # clip the classified trout streams to driftless region
 lines_classed_drift <- 
@@ -145,16 +147,22 @@ df_surveys_drift <-
   st_transform(crs = 3071) %>% 
   st_intersection(poly_driftless)
 
-# filter efforts to driftless region
+# filter efforts to driftless region based on filtered surveys
 df_efforts_drift <- 
   df_efforts %>% 
   filter(survey.seq.no %in% df_surveys_drift$survey.seq.no)
 
-# get survey site locations in driftless
+# isolate unique survey site locations in driftless
 df_surveys_drift_locs <- 
   df_surveys_drift %>% 
   distinct(site.seq.no, .keep_all = TRUE) %>% 
   select(wbic, site.seq.no) 
+
+
+# clip 24k flowlines to the driftless region
+# hydro_lines_driftless <- 
+#   hydro_lines %>% 
+#   st_intersection(driftless_poly)
 ```
 
 ### count of surveys 1994-2020
@@ -333,6 +341,9 @@ n.wbics.bnt.p <-
 
 
 
+```{r}
+
+```
 
 
 
