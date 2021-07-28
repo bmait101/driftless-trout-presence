@@ -5,13 +5,19 @@ date: "7 July 2021"
 output: github_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
 ## Overview
 
-```{r prep, warning=FALSE, message=FALSE}
+What is the percentage of Driftless area streams in which Brook, Brown, or Tiger Trout are present?
+
+```{r prep}
 library(tidyverse)
 library(here)
 library(wdnr.fmdb)
-set_fmdb_credentials()
+# set_fmdb_credentials()
 library(rgdal)  
 library(sf)
 library(glue)
@@ -20,16 +26,9 @@ library(glue)
 
 ## Data
 
-### stream lines and ecoregion polygons
+### Driftless ecoregion polygon and streams
 
-```{r read-lines-polys, cache=TRUE, warning=FALSE}
-
-# load classified trout stream lines
-lines_classed <- 
-  here("data", "classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
-  st_read() %>% 
-  st_transform(crs = 3071) 
-
+```{r read-lines-polys, cache=TRUE, results = 'hide'}
 # load driftless ecoregion polygon
 poly_driftless <- 
   here("data", "ecoregions","wi_eco_l3.shp") %>% 
@@ -37,13 +36,16 @@ poly_driftless <-
   st_transform(crs = 3071) %>% 
   filter(US_L3CODE == "52")
 
-# load full 24K flowline layer
-# strms_whd <- 
-#   readOGR(
-#     dsn = here("data", "24K_Hydro.gdb"), 
-#     layer = "WD_HYDRO_FLOWLINE_LN_24K") %>% 
-#   st_as_sf() %>% 
-#   mutate(hydroid = as.character(HYDROID))
+# load classified trout stream lines
+lines_classed <- 
+  here("data", "classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
+  st_read() %>% 
+  st_transform(crs = 3071) 
+
+# clip the classified trout streams to driftless region
+lines_classed_drift <- 
+  lines_classed %>% 
+  st_intersection(poly_driftless)
 
 ```
 
@@ -51,7 +53,7 @@ poly_driftless <-
 
 Download all surveys from 1994-2020 on streams using backpack and stream shockers:
 
-```{r pull-save-raw-surveys-efforts-data, cache=TRUE}
+```{r pull-save-raw-surveys-efforts-data, echo=FALSE}
 
 # start <- Sys.time()
 # 
@@ -95,11 +97,12 @@ Download all surveys from 1994-2020 on streams using backpack and stream shocker
 ```
 
 ```{r read-raw-survery-efforts-data}
+# data pulled from FMDB in hidden step
 df_surveys_raw <- read_rds(here("data", "surveys_raw_20210707.rds"))
 df_efforts_raw <- read_rds(here("data", "efforts_raw_20210707.rds"))
 ```
 
-### filter surveys/efforts for proofed data
+### filter surveys/efforts for proofed data:
 
 ```{r filter-proofed-data, eval=TRUE}
 
@@ -112,42 +115,33 @@ targ.survs <- c(
   )
 
 # filter surveys by unique efforts and status
-df_surveys <-
+df_surveys <- 
   df_surveys_raw %>% 
   filter(survey.seq.no %in% unique(df_efforts_raw$survey.seq.no)) %>% 
   filter(survey.status %in% targ.survs)
 
-# filter effort
+# filter effort on filtered surveys and remove 315 sites
 df_efforts <- 
   df_efforts_raw %>% 
   filter(survey.seq.no %in% df_surveys$survey.seq.no) %>%
   filter(site.seq.no != 315)
 
-df_surveys <- 
-  df_surveys %>% 
-  filter(survey.seq.no %in% unique(df_efforts$survey.seq.no))
-
+# clean up
 rm(df_surveys_raw); rm(df_efforts_raw)
-
 ```
 
-### clip data to driftless region
+### clip survey data to driftless region:
 
 ```{r clip-data-to-driftless, cache=TRUE}
 
-# clip the classified trout streams to driftless region
-lines_classed_drift <- 
-  lines_classed %>% 
-  st_intersection(poly_driftless)
-
-# clip surveys to driftless to pull fish data
+# first clip surveys to driftless area
 df_surveys_drift <- 
   df_surveys %>% 
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
   st_transform(crs = 3071) %>% 
   st_intersection(poly_driftless)
 
-# filter efforts to driftless region based on filtered surveys
+# then filter efforts to clipped surveys
 df_efforts_drift <- 
   df_efforts %>% 
   filter(survey.seq.no %in% df_surveys_drift$survey.seq.no)
@@ -157,17 +151,11 @@ df_surveys_drift_locs <-
   df_surveys_drift %>% 
   distinct(site.seq.no, .keep_all = TRUE) %>% 
   select(wbic, site.seq.no) 
-
-
-# clip 24k flowlines to the driftless region
-# hydro_lines_driftless <- 
-#   hydro_lines %>% 
-#   st_intersection(driftless_poly)
 ```
 
-### downlaod fishraw data for driftless region
+### download fishraw data for driftless region surveys:
 
-```{r pull-raw-fish, cache=TRUE}
+```{r pull-raw-fish, echo=FALSE}
 # start <- Sys.time()
 # 
 # # using efforts, download fish data 1000 efforts at a time
@@ -201,6 +189,7 @@ df_surveys_drift_locs <-
 ```
 
 ```{r load-raw-fish-data}
+# data pulled from FMDB in hidden step
 df_fish_raw <- 
   here("data", "fish_raw_20210727.rds") %>% 
   read_rds() 
@@ -210,7 +199,7 @@ df_fish_raw <-
 
 ### count of surveys in driftless from 1994-2020:
 
-```{r count-survs-in-drift}
+```{r count-survs-in-drift, echo=FALSE}
 n.surveys <- 
   df_surveys_drift %>% 
   distinct(survey.seq.no) %>% 
@@ -221,7 +210,7 @@ n.surveys <-
 
 ### count of wbics that have been surveyed in the driftless:
 
-```{r count-wbics-in-drift-survs}
+```{r count-wbics-in-drift-survs, echo=FALSE}
 n.wbics.surveyed <- 
   df_surveys_drift %>% 
   distinct(wbic) %>% 
@@ -232,7 +221,7 @@ n.wbics.surveyed <-
 
 ### count of wbics that are classified trout stream flowlines:
 
-```{r count-wbics-in-class-streams}
+```{r count-wbics-in-class-streams, echo=FALSE}
 n.wbics.classified <- 
   lines_classed_drift %>% 
   distinct(WBIC) %>% 
@@ -243,15 +232,15 @@ n.wbics.classified <-
 
 ### count of wbics in classified streams also surveyed:
 
-First, join site locations to nearest classified flowline to get a site's stream class:
+#### join site locations to nearest classified flowline to get a site's stream class:
 ```{r nn-spatial-join-sites-to-lines, cache=TRUE}
 df_surveys_drift_classed <- 
   df_surveys_drift_locs %>% 
   st_join(lines_classed_drift, join = nngeo::st_nn, k = 1, maxdist = 100)
 ```
 
-Then make counts for all classified wbics and class 1-2 wbics:
-```{r count-wbics-in-classed-surved, cache=TRUE}
+#### count of classificed wbics that have been surveyed:
+```{r count-wbics-in-classed-surved, echo=FALSE}
 n.wbics.classed.surveyed <- 
   df_surveys_drift_classed %>% 
   filter(!is.na(TROUT_CLAS)) %>% 
@@ -262,7 +251,8 @@ n.wbics.classed.surveyed <-
   print()
 ```
 
-```{r count-wbics-in-classed12-surved, cache=TRUE}
+#### count of class 1-2 wbics that have been surveyed:
+```{r count-wbics-in-classed12-surved, echo=FALSE}
 n.wbics.classed12.surveyed <- 
   df_surveys_drift_classed %>% 
   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
@@ -273,9 +263,9 @@ n.wbics.classed12.surveyed <-
   print()
 ```
 
-### plot driftless surveys and classed streams
+### plot of driftless survey sites and classified streams:
 
-```{r echo=FALSE, fig.height=10, fig.width=6, fig.align='center'}
+```{r echo=FALSE, fig.align='center'}
 ggplot() + 
   geom_sf(data = poly_driftless) + 
   geom_sf(data = lines_classed_drift, aes(color = TROUT_CLAS), show.legend = "line") + 
@@ -296,7 +286,7 @@ ggplot() +
                           size = 2))
     ) +
   labs(
-    title = "Driftless Area survey locations", 
+    # title = "Driftless Area survey locations", 
     color = "Stream Class", 
     fill = "Survey Site Class"
     ) +
@@ -309,15 +299,16 @@ ggplot() +
 
 ### deal with zero captures
 
-First we need to deal with surveys where species = 'no_fish_captured':
+#### surveys where species = 'no_fish_captured':
 ```{r zero-caps, message=FALSE}
+# isolate zero
 df_no_fish <- 
   df_fish_raw %>% 
   filter(species == "no_fish_captured") 
 ```
 
-Check the target species and surveys purposes for these surveys:
-```{r tables-targs}
+#### check and plot no captures:
+```{r tables-targs, echo=FALSE}
 # target species
 df_no_fish %>% 
     group_by(target.species) %>% 
@@ -341,7 +332,7 @@ df_no_fish %>%
     select('Primary Survey Purpose' = primary.survey.purpose, Count = n) 
 ```
 
-```{r map-zero-caps, fig.height=10, fig.width=6, fig.align='center'}
+```{r map-zero-caps, fig.align='center', echo=FALSE}
 df_no_fish %>% 
   left_join(df_surveys_drift_locs, by = "site.seq.no") %>% 
   st_as_sf() %>% 
@@ -360,7 +351,9 @@ df_no_fish %>%
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
-Now convert the no fish captures to species-specific zeros and subset trout data:
+#### convert no captures to species-specific zeros and subset trout data:
+
+Given the target species of a survey, a zero is added for brooks or browns or both:
 ```{r df-of-zeros, echo=FALSE}
 
 df_trout_0s <-
@@ -404,13 +397,14 @@ df_trout_0s <-
 df_fish <- 
   df_fish_raw %>% 
   filter(!species == "no_fish_captured") %>%
-  bind_rows(df_trout_0s) %>% 
-  filter(species %in% c("brook_trout","brown_trout","tiger_trout_(i21_x_i22)"))
+  bind_rows(df_trout_0s) %>%  # this df is made in a hidden step previous to this
+  mutate(species = if_else(species == "tiger_trout_(i21_x_i22)", "tiger_trout", species)) %>% 
+  filter(species %in% c("brook_trout","brown_trout","tiger_trout"))
 ```
 
-### count of surveyed streams (wbics) in which trout are present
+## count of surveyed wbics in which trout are present
 
-First convert catch data to presence data:
+### convert catch data to presence data:
 ```{r}
 # convert catch data to presence
 df_fish_presence <-
@@ -422,14 +416,16 @@ df_fish_presence <-
   left_join(df_surveys_drift_classed %>% 
               select(site.seq.no, TROUT_CLAS), by = "site.seq.no") 
 
+# check species counts
 df_fish_presence %>% 
   count(species, n)
 
+# check class counts
 df_fish_presence %>% 
   count(TROUT_CLAS)
 ```
 
-Then get counts for unique wbics with trout present on classified waters:
+### get counts for unique wbics with trout present on classified waters:
 ```{r}
 # count of streams in which brown trout were present
 n.wbics.bnt.p <- 
@@ -472,7 +468,7 @@ n.wbics.bkt.p.12 <-
 # count of streams in which brown trout were present
 n.wbics.tiger.p <- 
   df_fish_presence %>% 
-  filter(species == "tiger_trout_(i21_x_i22)", n == 1) %>% 
+  filter(species == "tiger_trout", n == 1) %>% 
   select(-geometry) %>% 
   distinct(wbic) %>% 
   pull() %>% 
@@ -482,7 +478,7 @@ n.wbics.tiger.p <-
 n.wbics.tiger.p.12 <- 
   df_fish_presence %>% 
   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-  filter(species == "tiger_trout_(i21_x_i22)", n == 1) %>% 
+  filter(species == "tiger_trout", n == 1) %>% 
   select(-geometry) %>% 
   distinct(wbic) %>% 
   pull() %>% 
@@ -491,27 +487,38 @@ n.wbics.tiger.p.12 <-
 
 ### calculate percentages
 
-#### brown trout
+#### brown trout 
 ```{r}
+# class 1-3
 (percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.classed.surveyed) * 100, digits = 2))
+# class 1-2
 (percent.wbics.bnt.present12 <- round((n.wbics.bnt.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
 ```
 
 #### brook trout
 ```{r}
+# class 1-3
 (percent.wbics.bkt.present <- round((n.wbics.bkt.p/n.wbics.classed.surveyed) * 100, digits = 2))
+# class 1-2
 (percent.wbics.bkt.present12 <- round((n.wbics.bkt.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
 ```
 
 #### tiger trout
 ```{r}
+# class 1-3
 (percent.wbics.tgt.present <- round((n.wbics.tiger.p/n.wbics.classed.surveyed) * 100, digits = 2))
+# class 1-2
 (percent.wbics.tgt.present12 <- round((n.wbics.tiger.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
 ```
 
 ### plot presence/absence
 
-```{r fig.height=6, fig.width=10, fig.align='center'}
+```{r fig.align='center', echo=FALSE, fig.width=8}
+panel_labels <- c(
+  `brook_trout` = glue("Brook Trout ({percent.wbics.bkt.present}%)"),
+  `brown_trout` = glue("Brown Trout ({percent.wbics.bnt.present}%)"),
+  `tiger_trout` = glue("Tiger Trout ({percent.wbics.tgt.present}%)")
+  )
 
 ggplot() + 
   geom_sf(data = poly_driftless) + 
@@ -534,13 +541,15 @@ ggplot() +
                           shape = 21, 
                           size = 2))
     ) +
-  facet_wrap(vars(species)) +
+  facet_wrap(vars(species), labeller = as_labeller(panel_labels)) +
   labs(
-    title = "How common are trout in Wisconsin's Driftless Area?",
+    title = "How common are trout in classified Driftless Area streams?",
     color = "Stream Class", 
     fill = "Trout Presence") + 
   theme_void() + 
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(
+    plot.title = element_text(hjust = 0.5, family = "sans", size = 18, margin=margin(0,0,10,0))
+    )
 
 # path <- here::here("driftless_bnt_presence")
 # ggsave(glue::glue("{path}.pdf"), width = 6.5, height = 6, device = cairo_pdf)
