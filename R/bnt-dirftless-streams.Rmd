@@ -97,7 +97,6 @@ df_surveys_raw <- read_rds(here("data", "surveys_raw_20210707.rds"))
 df_efforts_raw <- read_rds(here("data", "efforts_raw_20210707.rds"))
 ```
 
-
 ### filter surveys/efforts for proofed data
 
 ```{r filter-proofed-data, eval=TRUE}
@@ -129,7 +128,6 @@ df_surveys <-
 rm(df_surveys_raw); rm(df_efforts_raw)
 
 ```
-
 
 ### clip data to driftless
 
@@ -165,56 +163,59 @@ df_surveys_drift_locs <-
 #   st_intersection(driftless_poly)
 ```
 
-### count of surveys 1994-2020
+### count of surveys in driftless from 1994-2020:
 
-```{r}
-# count of surveys in driftless
+```{r count-survs-in-drift}
 n.surveys <- 
   df_surveys_drift %>% 
   distinct(survey.seq.no) %>% 
   pull() %>% 
-  length()
+  length() %>% 
+  print()
 ```
 
-### count of distinct wbics: all driftless survey data
+### count of distinct wbics in all driftless survey data:
 
-```{r}
+```{r count-wbics-in-drift-survs}
 n.wbics.surveyed <- 
   df_surveys_drift %>% 
   distinct(wbic) %>% 
   pull() %>% 
-  length()
-
+  length() %>% 
+  print()
 ```
 
-### count of distinct wbics: classified stream data
+### count of distinct wbics in classified stream flowlines:
 
-```{r}
+```{r count-wbics-in-class-streams}
 n.wbics.classified <- 
   lines_classed_drift %>% 
   distinct(WBIC) %>% 
   pull() %>% 
-  length()
+  length() %>% 
+  print()
 ```
 
-### count of distinct wbics: surveys on classified streams
+### count of distinct wbics in classified streams also surveys:
 
-Need to spatial join survey sites to stream lines for classes
-
-```{r}
-
+```{r nn-spatial-join-sites-to-lines, cache=TRUE}
 df_surveys_drift_classed <- 
   df_surveys_drift_locs %>% 
   st_join(lines_classed_drift, join = nngeo::st_nn, k = 1, maxdist = 100)
+```
 
+```{r count-wbics-in-classed-surved, cache=TRUE}
 n.wbics.classed.surveyed <- 
   df_surveys_drift_classed %>% 
   filter(!is.na(TROUT_CLAS)) %>% 
   st_drop_geometry() %>% 
   distinct(wbic) %>% 
   pull() %>% 
-  length()
+  length() %>% 
+  print()
+```
 
+```{r count-wbics-in-classed12-surved, cache=TRUE}
 n.wbics.classed12.surveyed <- 
   df_surveys_drift_classed %>% 
   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
@@ -223,7 +224,6 @@ n.wbics.classed12.surveyed <-
   pull() %>% 
   length()
 ```
-
 
 ### plot surveys 
 
