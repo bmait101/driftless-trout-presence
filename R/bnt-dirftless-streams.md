@@ -138,6 +138,35 @@ df_fish_presence <-
 
 #### count of surveyed wbics in which trout are present
 
+``` r
+# brown
+n.wbics.bnt.p
+```
+
+    ## [1] 535
+
+``` r
+# n.wbics.bnt.p.12
+
+# brook
+n.wbics.bkt.p
+```
+
+    ## [1] 607
+
+``` r
+# n.wbics.bkt.p.12
+
+# tiger
+n.wbics.tiger.p
+```
+
+    ## [1] 16
+
+``` r
+# n.wbics.tiger.p.12
+```
+
 ## 4\. calculate percentages
 
 #### brown trout
@@ -190,8 +219,14 @@ df_fish_presence <-
 
 ### plot presence/absence
 
-<img src="bnt-dirftless-streams_files/figure-gfm/unnamed-chunk-13-1.png" style="display: block; margin: auto;" />
+<img src="bnt-dirftless-streams_files/figure-gfm/unnamed-chunk-14-1.png" style="display: block; margin: auto;" />
 
     ## Converting page 1 to C:/Users/maitlb/Documents/projects/driftless-trout-presence/plots/driftless_trout_presence.png... done!
 
     ## [1] "C:/Users/maitlb/Documents/projects/driftless-trout-presence/plots/driftless_trout_presence.png"
+
+<img src="bnt-dirftless-streams_files/figure-gfm/unnamed-chunk-15-1.png" style="display: block; margin: auto;" />
+
+    ## Converting page 1 to C:/Users/maitlb/Documents/projects/driftless-trout-presence/plots/driftless_trout_presence_class12.png... done!
+
+    ## [1] "C:/Users/maitlb/Documents/projects/driftless-trout-presence/plots/driftless_trout_presence_class12.png"

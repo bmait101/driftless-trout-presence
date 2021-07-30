@@ -498,6 +498,20 @@ n.wbics.tiger.p.12 <-
   length()
 ```
 
+```{r}
+# brown
+n.wbics.bnt.p
+# n.wbics.bnt.p.12
+
+# brook
+n.wbics.bkt.p
+# n.wbics.bkt.p.12
+
+# tiger
+n.wbics.tiger.p
+# n.wbics.tiger.p.12
+```
+
 ## 4. calculate percentages
 
 #### brown trout 
@@ -537,8 +551,8 @@ ggplot() +
   geom_sf(data = poly_driftless, fill = "white") +
   geom_sf(data = lines_classed_drift, 
           aes(color = TROUT_CLAS), show.legend = "line") +
-  geom_sf(data = df_surveys_drift_locs_classes %>% filter(is.na(TROUT_CLAS)),
-          size = 1, shape = 16, color = "grey", alpha = 0.25) +
+  # geom_sf(data = df_surveys_drift_locs_classes %>% filter(is.na(TROUT_CLAS)),
+  #         size = 1, shape = 16, color = "grey", alpha = 0.25) +
   geom_sf(data = df_fish_presence %>% st_as_sf(), 
           aes(fill = as.factor(n)), show.legend = "point",
           shape = 21, size = 1, alpha = 0.5) + 
@@ -559,9 +573,10 @@ ggplot() +
     ) +
   facet_wrap(vars(species), labeller = as_labeller(panel_labels)) +
   labs(
-    title = "How common are trout in Driftless Area streams?",
-    subtitle ="Percent of classified and surveyed streams with trout present:",
-    caption = "Note: light grey dots depict all surveys sites in the region",
+    # title = "How common are trout in Driftless Area streams?",
+    title ="Percent of all classified and surveyed streams with trout present:",
+    # subtitle ="Percent of all classified and surveyed streams with trout present:",
+    # caption = "Note: light grey dots depict all surveys sites in the region",
     color = "Stream Class", 
     fill = "Trout Presence") + 
   theme_void() + 
@@ -571,10 +586,67 @@ ggplot() +
     )
 
 path <- here::here("plots", "driftless_trout_presence")
-ggsave(glue::glue("{path}.pdf"), width = 8, height = 6, device = cairo_pdf)
+ggsave(glue::glue("{path}.pdf"), width = 10, height = 5, device = cairo_pdf)
 pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
             filenames = glue::glue("{path}.png"),
             format = "png", dpi = 300)
   
 ```
 
+
+```{r fig.align='center', echo=FALSE, fig.width=10}
+panel_labels <- c(
+  `brook_trout` = glue("Brook Trout ({percent.wbics.bkt.present12}%)"),
+  `brown_trout` = glue("Brown Trout ({percent.wbics.bnt.present12}%)"),
+  `tiger_trout` = glue("Tiger Trout ({percent.wbics.tgt.present12}%)")
+  )
+
+ggplot() + 
+  geom_sf(data = poly_driftless, fill = "white") +
+  geom_sf(data = lines_classed_drift %>% 
+            filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")), 
+          aes(color = TROUT_CLAS), show.legend = "line") +
+  # geom_sf(data = df_surveys_drift_locs_classes %>% 
+  #           filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")),
+  #         size = 1, shape = 16, color = "grey", alpha = 0.25) +
+  geom_sf(data = df_fish_presence %>% 
+            st_as_sf() %>% 
+            filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")), 
+          aes(fill = as.factor(n)), show.legend = "point",
+          shape = 21, size = 1, alpha = 0.5) + 
+  scale_colour_manual(
+    values = c("#53DC4D", "#00C5ff"), 
+    guide = guide_legend(
+      override.aes = list(linetype = c("solid", "solid"), 
+                          shape = c(NA, NA),
+                          size = c(1,1)))
+    ) +
+  scale_fill_manual(
+    values = c("black", "white"), 
+    labels = c("Absent", "Present"),
+    guide = guide_legend(
+      override.aes = list(linetype = "blank",
+                          shape = 21, alpha = 1,
+                          size = 2))
+    ) +
+  facet_wrap(vars(species), labeller = as_labeller(panel_labels)) +
+  labs(
+    # title = "How common are trout in Driftless Area streams?",
+    title ="Percent of class I & II surveyed streams with trout present:",
+    # subtitle ="Percent of class I & II surveyed streams with trout present:",
+    # caption = "Note: light grey dots depict all surveys sites in the region",
+    color = "Stream Class", 
+    fill = "Trout Presence") + 
+  theme_void() + 
+  theme(
+    plot.title = element_text(hjust = 0.5, family = "sans", size = 18, margin=margin(0,0,5,0)), 
+    plot.subtitle = element_text(hjust = 0.5, family = "sans", size = 12, margin=margin(0,0,10,0))
+    )
+
+path <- here::here("plots", "driftless_trout_presence_class12")
+ggsave(glue::glue("{path}.pdf"), width = 10, height = 5, device = cairo_pdf)
+pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
+            filenames = glue::glue("{path}.png"),
+            format = "png", dpi = 300)
+  
+```
