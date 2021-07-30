@@ -303,16 +303,15 @@ ggplot() +
 
 ## 3. Trout presence/abscence
 
-### isolate zero captures
+#### isolate and plot zero captures
 
-```{r zero-caps, message=FALSE}
+```{r zero-caps, message=FALSE, echo=FALSE}
 # isolate zero captures
 df_no_fish <- 
   df_fish_raw %>% 
   filter(species == "no_fish_captured") 
 ```
 
-#### plot zero captures
 ```{r tables-targs, echo=FALSE, include=FALSE}
 # target species
 df_no_fish %>% 
@@ -355,9 +354,8 @@ df_no_fish %>%
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
-#### convert no captures to species-specific zeros and subset trout data:
+#### convert to species-specific zeros and subset trout data:
 
-Given the target species of a survey, a zero is added for brooks or browns or both:
 ```{r df-of-zeros, echo=FALSE}
 
 df_trout_0s <-
@@ -406,9 +404,9 @@ df_fish <-
   filter(species %in% c("brook_trout","brown_trout","tiger_trout"))
 ```
 
-## count of surveyed wbics in which trout are present
+### count of surveyed wbics in which trout are present
 
-### convert catch data to presence data:
+#### convert catch data to presence data:
 ```{r}
 # convert catch data to presence
 df_fish_presence <-
@@ -418,19 +416,21 @@ df_fish_presence <-
   mutate(n = if_else(n > 1, 1, 0)) %>% 
   # join survey metadata for coords/classes
   left_join(df_surveys_drift_classed %>% 
-              select(site.seq.no, TROUT_CLAS), by = "site.seq.no") 
+              select(site.seq.no, TROUT_CLAS), by = "site.seq.no")
 
+```
+
+#### check species counts:
+```{r}
 # check species counts
 df_fish_presence %>% 
   count(species, n)
-
-# check class counts
-df_fish_presence %>% 
-  count(TROUT_CLAS)
 ```
 
-### get counts for unique wbics with trout present on classified waters:
-```{r}
+
+#### count of surveyed wbics in which trout are present
+
+```{r echo=FALSE}
 # count of streams in which brown trout were present
 n.wbics.bnt.p <- 
   df_fish_presence %>% 
@@ -489,7 +489,7 @@ n.wbics.tiger.p.12 <-
   length()
 ```
 
-### calculate percentages
+## 4. calculate percentages
 
 #### brown trout 
 ```{r}

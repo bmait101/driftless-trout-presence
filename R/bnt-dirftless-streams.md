@@ -86,23 +86,11 @@ stream get an NA for stream class.
 
 ## 3\. Trout presence/abscence
 
-### isolate zero captures
-
-``` r
-# isolate zero captures
-df_no_fish <- 
-  df_fish_raw %>% 
-  filter(species == "no_fish_captured") 
-```
-
-#### plot zero captures
+#### isolate and plot zero captures
 
 <img src="bnt-dirftless-streams_files/figure-gfm/map-zero-caps-1.png" style="display: block; margin: auto;" />
 
-#### convert no captures to species-specific zeros and subset trout data:
-
-Given the target species of a survey, a zero is added for brooks or
-browns or both:
+#### convert to species-specific zeros and subset trout data:
 
 ``` r
 df_fish <- 
@@ -113,9 +101,9 @@ df_fish <-
   filter(species %in% c("brook_trout","brown_trout","tiger_trout"))
 ```
 
-## count of surveyed wbics in which trout are present
+### count of surveyed wbics in which trout are present
 
-### convert catch data to presence data:
+#### convert catch data to presence data:
 
 ``` r
 # convert catch data to presence
@@ -126,8 +114,12 @@ df_fish_presence <-
   mutate(n = if_else(n > 1, 1, 0)) %>% 
   # join survey metadata for coords/classes
   left_join(df_surveys_drift_classed %>% 
-              select(site.seq.no, TROUT_CLAS), by = "site.seq.no") 
+              select(site.seq.no, TROUT_CLAS), by = "site.seq.no")
+```
 
+#### check species counts:
+
+``` r
 # check species counts
 df_fish_presence %>% 
   count(species, n)
@@ -143,82 +135,9 @@ df_fish_presence %>%
     ## 5 tiger_trout     0   376
     ## 6 tiger_trout     1   193
 
-``` r
-# check class counts
-df_fish_presence %>% 
-  count(TROUT_CLAS)
-```
+#### count of surveyed wbics in which trout are present
 
-    ## # A tibble: 4 x 2
-    ##   TROUT_CLAS     n
-    ##   <chr>      <int>
-    ## 1 CLASS I     4178
-    ## 2 CLASS II    6523
-    ## 3 CLASS III    739
-    ## 4 <NA>        1535
-
-### get counts for unique wbics with trout present on classified waters:
-
-``` r
-# count of streams in which brown trout were present
-n.wbics.bnt.p <- 
-  df_fish_presence %>% 
-  filter(species == "brown_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
-
-# count of 1-2 class streams in which brown trout were present
-n.wbics.bnt.p.12 <- 
-  df_fish_presence %>% 
-  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-  filter(species == "brown_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
-
-# count of streams in which brown trout were present
-n.wbics.bkt.p <- 
-  df_fish_presence %>% 
-  filter(species == "brook_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
-
-# count of 1-2 class streams in which brown trout were present
-n.wbics.bkt.p.12 <- 
-  df_fish_presence %>% 
-  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-  filter(species == "brook_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
-
-# count of streams in which brown trout were present
-n.wbics.tiger.p <- 
-  df_fish_presence %>% 
-  filter(species == "tiger_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
-
-# count of 1-2 class streams in which brown trout were present
-n.wbics.tiger.p.12 <- 
-  df_fish_presence %>% 
-  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-  filter(species == "tiger_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
-```
-
-### calculate percentages
+## 4\. calculate percentages
 
 #### brown trout
 
@@ -270,4 +189,4 @@ n.wbics.tiger.p.12 <-
 
 ### plot presence/absence
 
-<img src="bnt-dirftless-streams_files/figure-gfm/unnamed-chunk-11-1.png" style="display: block; margin: auto;" />
+<img src="bnt-dirftless-streams_files/figure-gfm/unnamed-chunk-12-1.png" style="display: block; margin: auto;" />
