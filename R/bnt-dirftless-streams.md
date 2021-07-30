@@ -66,6 +66,13 @@ df_fish_raw <-
 
     ## [1] 1011
 
+and by class:
+
+    ##   TROUT_CLAS   n
+    ## 1    CLASS I 368
+    ## 2   CLASS II 518
+    ## 3  CLASS III 125
+
 #### number of surveyed wbics in the driftless also on classified streams:
 
 To do this, we need to join sites to nearest classified stream to get a
@@ -82,7 +89,7 @@ stream get an NA for stream class.
 
 ### plot of driftless survey sites and classified streams:
 
-<img src="bnt-dirftless-streams_files/figure-gfm/unnamed-chunk-5-1.png" style="display: block; margin: auto;" />
+<img src="bnt-dirftless-streams_files/figure-gfm/unnamed-chunk-6-1.png" style="display: block; margin: auto;" />
 
 ## 3\. Trout presence/abscence
 
@@ -101,7 +108,7 @@ df_fish <-
   filter(species %in% c("brook_trout","brown_trout","tiger_trout"))
 ```
 
-### count of surveyed wbics in which trout are present
+### count of surveyed wbics in which trout are present:
 
 #### convert catch data to presence data:
 
@@ -117,13 +124,7 @@ df_fish_presence <-
               select(site.seq.no, TROUT_CLAS), by = "site.seq.no")
 ```
 
-#### check species counts:
-
-``` r
-# check species counts
-df_fish_presence %>% 
-  count(species, n)
-```
+#### check counts of surveys where trout are presencet and absent:
 
     ## # A tibble: 6 x 3
     ##   species         n    nn
@@ -189,4 +190,8 @@ df_fish_presence %>%
 
 ### plot presence/absence
 
-<img src="bnt-dirftless-streams_files/figure-gfm/unnamed-chunk-12-1.png" style="display: block; margin: auto;" />
+<img src="bnt-dirftless-streams_files/figure-gfm/unnamed-chunk-13-1.png" style="display: block; margin: auto;" />
+
+    ## Converting page 1 to C:/Users/maitlb/Documents/projects/driftless-trout-presence/plots/driftless_trout_presence.png... done!
+
+    ## [1] "C:/Users/maitlb/Documents/projects/driftless-trout-presence/plots/driftless_trout_presence.png"

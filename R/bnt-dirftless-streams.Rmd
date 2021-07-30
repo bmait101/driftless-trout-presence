@@ -225,6 +225,15 @@ n.wbics.classified <-
   print()
 ```
 
+and by class:
+
+```{r echo=FALSE}
+lines_classed_drift %>% 
+  st_drop_geometry() %>% 
+  count(TROUT_CLAS)
+```
+
+
 #### number of surveyed wbics in the driftless also on classified streams:
 
 To do this, we need to join sites to nearest classified stream to get a site's stream class (so sites that are not on or near a classified stream get an NA for stream class.
@@ -404,7 +413,7 @@ df_fish <-
   filter(species %in% c("brook_trout","brown_trout","tiger_trout"))
 ```
 
-### count of surveyed wbics in which trout are present
+### count of surveyed wbics in which trout are present:
 
 #### convert catch data to presence data:
 ```{r}
@@ -420,8 +429,8 @@ df_fish_presence <-
 
 ```
 
-#### check species counts:
-```{r}
+#### check counts of surveys where trout are presencet and absent:
+```{r echo=FALSE}
 # check species counts
 df_fish_presence %>% 
   count(species, n)
@@ -551,7 +560,7 @@ ggplot() +
   facet_wrap(vars(species), labeller = as_labeller(panel_labels)) +
   labs(
     title = "How common are trout in Driftless Area streams?",
-    subtitle ="Percent of classified streams with trout present:",
+    subtitle ="Percent of classified and surveyed streams with trout present:",
     caption = "Note: light grey dots depict all surveys sites in the region",
     color = "Stream Class", 
     fill = "Trout Presence") + 
@@ -561,11 +570,11 @@ ggplot() +
     plot.subtitle = element_text(hjust = 0.5, family = "sans", size = 12, margin=margin(0,0,10,0))
     )
 
-# path <- here::here("driftless_bnt_presence")
-# ggsave(glue::glue("{path}.pdf"), width = 6.5, height = 6, device = cairo_pdf)
-# pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
-#             filenames = glue::glue("{path}.png"),
-#             format = "png", dpi = 300)
+path <- here::here("plots", "driftless_trout_presence")
+ggsave(glue::glue("{path}.pdf"), width = 8, height = 6, device = cairo_pdf)
+pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
+            filenames = glue::glue("{path}.png"),
+            format = "png", dpi = 300)
   
 ```
 
