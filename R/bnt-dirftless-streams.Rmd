@@ -496,6 +496,17 @@ n.wbics.tiger.p.12 <-
   distinct(wbic) %>% 
   pull() %>% 
   length()
+
+
+# sympatry
+n.wbics.bnt.p <- 
+  df_fish_presence %>% 
+  select(-geometry, -TROUT_CLAS) %>% 
+  filter(species %in% c("brown_trout","brook_trout")) %>%
+  pivot_wider(id_cols = 1:3, names_from = species, values_from = n)
+  distinct(wbic) %>% 
+  pull() %>% 
+  length()
 ```
 
 ```{r}
