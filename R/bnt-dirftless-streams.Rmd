@@ -420,12 +420,12 @@ df_fish <-
 # convert catch data to presence
 df_fish_presence <-
   df_fish %>% 
-  group_by(wbic, site.seq.no, species) %>% 
+  group_by(wbic, survey.seq.no, species) %>% 
   summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
   mutate(n = if_else(n > 1, 1, 0)) %>% 
   # join survey metadata for coords/classes
   left_join(df_surveys_drift_classed %>% 
-              select(site.seq.no, TROUT_CLAS), by = "site.seq.no")
+              select(survey.seq.no, TROUT_CLAS), by = "survey.seq.no")
 
 ```
 
@@ -444,7 +444,7 @@ df_fish_presence %>%
 n.wbics.bnt.p <- 
   df_fish_presence %>% 
   filter(species == "brown_trout", n == 1) %>% 
-  select(-geometry) %>% 
+  # select(-geometry) %>% 
   distinct(wbic) %>% 
   pull() %>% 
   length()
