@@ -1,7 +1,7 @@
 ---
-title: "Driftless trout streams"
+title: "How common are trout in Driftless streams"
 author: "Bryan Maitland"
-date: "7 July 2021"
+date: "29 July 2021"
 output: github_document
 ---
 
@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 What is the percentage of Driftless area streams in which Brook, Brown, or Tiger Trout are present?
 
-```{r prep}
+```{r prep, echo=FALSE}
 library(tidyverse)
 library(here)
 library(wdnr.fmdb)
@@ -24,32 +24,11 @@ library(glue)
 ```
 
 
-## Data
-
-### Driftless ecoregion polygon and streams
-
-```{r read-lines-polys, cache=TRUE, results = 'hide'}
-poly_driftless <- 
-  here("data", "ecoregions","wi_eco_l3.shp") %>% 
-  st_read() %>% 
-  st_transform(crs = 3071) %>% 
-  filter(US_L3CODE == "52")
-
-lines_classed <- 
-  here("data", "classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
-  st_read() %>% 
-  st_transform(crs = 3071) 
-
-# clip the classified trout streams to driftless region
-lines_classed_drift <- 
-  lines_classed %>% 
-  st_intersection(poly_driftless)
-
-```
+## 1. Data
 
 ### FMDB surveys and efforts
 
-Download all surveys from 1994-2020 on streams using backpack and stream shockers:
+Download all surveys from 1994-2020 on streams using backpack and stream shockers, retaining only surveys that are complete and proofed:
 
 ```{r pull-save-raw-surveys-efforts-data, echo=FALSE}
 
@@ -100,9 +79,7 @@ df_surveys_raw <- read_rds(here("data", "surveys_raw_20210707.rds"))
 df_efforts_raw <- read_rds(here("data", "efforts_raw_20210707.rds"))
 ```
 
-### filter surveys/efforts for proofed data:
-
-```{r filter-proofed-data, eval=TRUE}
+```{r filter-proofed-data, eval=TRUE, echo=FALSE}
 
 # list of good surveys status
 targ.survs <- c(
@@ -128,7 +105,27 @@ df_efforts <-
 rm(df_surveys_raw); rm(df_efforts_raw)
 ```
 
+
 ### clip survey data to driftless region:
+
+```{r load-lines-polys, cache=TRUE, results = 'hide', echo=FALSE}
+poly_driftless <- 
+  here("data", "ecoregions","wi_eco_l3.shp") %>% 
+  st_read() %>% 
+  st_transform(crs = 3071) %>% 
+  filter(US_L3CODE == "52")
+
+lines_classed <- 
+  here("data", "classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
+  st_read() %>% 
+  st_transform(crs = 3071) 
+
+# clip the classified trout streams to driftless region
+lines_classed_drift <- 
+  lines_classed %>% 
+  st_intersection(poly_driftless)
+
+```
 
 ```{r clip-data-to-driftless, cache=TRUE}
 
@@ -193,9 +190,9 @@ df_fish_raw <-
   read_rds() 
 ```
 
-## Inspect data
+## 2. Count of surveys and streams (wbics)
 
-#### number of surveys in driftless from 1994-2020:
+#### number of distinct surveys in driftless from 1994-2020:
 
 ```{r echo=FALSE}
 n.surveys <- 
@@ -206,7 +203,7 @@ n.surveys <-
   print()
 ```
 
-#### number of surveyed streams in the driftless:
+#### number of distinct wbics in driftless suvrvey data:
 
 ```{r echo=FALSE}
 n.wbics.surveyed <- 
@@ -217,7 +214,7 @@ n.wbics.surveyed <-
   print()
 ```
 
-#### number of streams that are classified trout streams:
+#### number of distinct wbics in classified trout streams layer:
 
 ```{r echo=FALSE}
 n.wbics.classified <- 
@@ -228,10 +225,10 @@ n.wbics.classified <-
   print()
 ```
 
-#### number of surveyed streams in the driftless on classified streams:
+#### number of surveyed wbics in the driftless also on classified streams:
 
-join sites to nearest classified stream to get a site's stream class (so sites that are not on or near a classified stream get an NA for stream class:
-```{r nn-spatial-join-sites-to-lines, cache=TRUE}
+To do this, we need to join sites to nearest classified stream to get a site's stream class (so sites that are not on or near a classified stream get an NA for stream class.
+```{r nn-spatial-join-sites-to-lines, cache=TRUE, echo=FALSE}
 # df_surveys_drift_classed <-
 #   df_surveys_drift_locs %>%
 #   st_join(lines_classed_drift, join = nngeo::st_nn, k = 1, maxdist = 100)
@@ -248,6 +245,7 @@ df_surveys_drift_classed <-
 
 ```
 
+##### number of surveyed wbics in the driftless also on classified streams:
 ```{r echo=FALSE}
 n.wbics.classed.surveyed <- 
   df_surveys_drift_classed %>% 
@@ -259,6 +257,7 @@ n.wbics.classed.surveyed <-
   print()
 ```
 
+##### number of surveyed wbics in the driftless also on classified streams I/II:
 ```{r count-wbics-in-classed12-surved, echo=FALSE}
 n.wbics.classed12.surveyed <- 
   df_surveys_drift_classed %>% 
@@ -302,7 +301,7 @@ ggplot() +
 ```
 
 
-## Trout presence/abscence
+## 3. Trout presence/abscence
 
 ### isolate zero captures
 

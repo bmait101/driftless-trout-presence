@@ -1,81 +1,24 @@
-Driftless trout streams
+How common are trout in Driftless streams
 ================
 Bryan Maitland
-7 July 2021
+29 July 2021
 
 ## Overview
 
 What is the percentage of Driftless area streams in which Brook, Brown,
 or Tiger Trout are present?
 
-``` r
-library(tidyverse)
-library(here)
-library(wdnr.fmdb)
-# set_fmdb_credentials()
-library(rgdal)  
-library(sf)
-library(glue)
-```
-
-## Data
-
-### Driftless ecoregion polygon and streams
-
-``` r
-poly_driftless <- 
-  here("data", "ecoregions","wi_eco_l3.shp") %>% 
-  st_read() %>% 
-  st_transform(crs = 3071) %>% 
-  filter(US_L3CODE == "52")
-
-lines_classed <- 
-  here("data", "classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
-  st_read() %>% 
-  st_transform(crs = 3071) 
-
-# clip the classified trout streams to driftless region
-lines_classed_drift <- 
-  lines_classed %>% 
-  st_intersection(poly_driftless)
-```
+## 1\. Data
 
 ### FMDB surveys and efforts
 
 Download all surveys from 1994-2020 on streams using backpack and stream
-shockers:
+shockers, retaining only surveys that are complete and proofed:
 
 ``` r
 # data pulled from FMDB in hidden step
 df_surveys_raw <- read_rds(here("data", "surveys_raw_20210707.rds"))
 df_efforts_raw <- read_rds(here("data", "efforts_raw_20210707.rds"))
-```
-
-### filter surveys/efforts for proofed data:
-
-``` r
-# list of good surveys status
-targ.survs <- c(
-  "data_entry_complete_and_proofed",
-  "historical_data_complete_and_proofed",
-  "historical_data_entry_complete",
-  "historical_data_load_status_unknown"
-  )
-
-# filter surveys by unique efforts and status
-df_surveys <- 
-  df_surveys_raw %>% 
-  filter(survey.seq.no %in% unique(df_efforts_raw$survey.seq.no)) %>% 
-  filter(survey.status %in% targ.survs)
-
-# filter effort on filtered surveys and remove 315 sites
-df_efforts <- 
-  df_efforts_raw %>% 
-  filter(survey.seq.no %in% df_surveys$survey.seq.no) %>%
-  filter(site.seq.no != 315)
-
-# clean up
-rm(df_surveys_raw); rm(df_efforts_raw)
 ```
 
 ### clip survey data to driftless region:
@@ -109,43 +52,31 @@ df_fish_raw <-
   read_rds() 
 ```
 
-## Inspect data
+## 2\. Count of surveys and streams (wbics)
 
-#### number of surveys in driftless from 1994-2020:
+#### number of distinct surveys in driftless from 1994-2020:
 
     ## [1] 9395
 
-#### number of surveyed streams in the driftless:
+#### number of distinct wbics in driftless suvrvey data:
 
     ## [1] 4354
 
-#### number of streams that are classified trout streams:
+#### number of distinct wbics in classified trout streams layer:
 
     ## [1] 1011
 
-#### number of surveyed streams in the driftless on classified streams:
+#### number of surveyed wbics in the driftless also on classified streams:
 
-join sites to nearest classified stream to get a site’s stream class (so
-sites that are not on or near a classified stream get an NA for stream
-class:
+To do this, we need to join sites to nearest classified stream to get a
+site’s stream class (so sites that are not on or near a classified
+stream get an NA for stream class.
 
-``` r
-# df_surveys_drift_classed <-
-#   df_surveys_drift_locs %>%
-#   st_join(lines_classed_drift, join = nngeo::st_nn, k = 1, maxdist = 100)
-# write_rds(df_surveys_drift_classed, here("data", "df_surveys_drift_classed.rds"))
-
-df_surveys_drift_locs_classes <- 
-  here("data", "df_surveys_drift_classed.rds") %>% 
-  read_rds() %>% 
-  select(site.seq.no, TROUT_CLAS)
-
-df_surveys_drift_classed <- 
-  df_surveys_drift %>% 
-  left_join(df_surveys_drift_locs_classes %>% st_drop_geometry(), by = "site.seq.no")
-```
+##### number of surveyed wbics in the driftless also on classified streams:
 
     ## [1] 726
+
+##### number of surveyed wbics in the driftless also on classified streams I/II:
 
     ## [1] 651
 
@@ -153,7 +84,7 @@ df_surveys_drift_classed <-
 
 <img src="bnt-dirftless-streams_files/figure-gfm/unnamed-chunk-5-1.png" style="display: block; margin: auto;" />
 
-## Trout presence/abscence
+## 3\. Trout presence/abscence
 
 ### isolate zero captures
 
