@@ -422,136 +422,140 @@ df_fish_presence <-
   df_fish %>% 
   group_by(wbic, survey.seq.no, species) %>% 
   summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
-  mutate(n = if_else(n > 1, 1, 0)) %>% 
-  # join survey metadata for coords/classes
-  left_join(df_surveys_drift_classed %>% 
-              select(survey.seq.no, TROUT_CLAS), by = "survey.seq.no")
+  mutate(n = if_else(n > 1, 1, 0))
 
-```
+wide <- 
+  df_fish_presence %>% 
+  pivot_wider(names_from = species, values_from = n, values_fill = 0) %>% 
+  mutate(symp = brook_trout + brown_trout) %>% 
+  mutate(symp = if_else(symp == 2, 1, 0))
 
-#### check counts of surveys where trout are presencet and absent:
-```{r echo=FALSE}
-# check species counts
-df_fish_presence %>% 
-  count(species, n)
+n.wbics.bnt.p <- 
+  wide %>% 
+  select(wbic, brown_trout) %>% 
+  filter(brown_trout == 1) %>% 
+  pull(wbic) %>% 
+  unique() %>% 
+  length()
+
+n.wbics.bkt.p <- 
+  wide %>% 
+  select(wbic, brook_trout) %>% 
+  filter(brook_trout == 1) %>% 
+  pull(wbic) %>% 
+  unique() %>% 
+  length()
+
+n.wbics.tiger.p <- 
+  wide %>% 
+  select(wbic, tiger_trout) %>% 
+  filter(tiger_trout == 1) %>% 
+  pull(wbic) %>% 
+  unique() %>% 
+  length()
+
+n.wbics.symp.p <- 
+  wide %>% 
+  select(wbic, symp) %>% 
+  filter(symp == 1) %>% 
+  pull(wbic) %>% 
+  unique() %>% 
+  length()
+
 ```
 
 
 #### count of surveyed wbics in which trout are present
 
-```{r echo=FALSE}
+```{r echo=FALSE, eval=FALSE}
 # count of streams in which brown trout were present
-n.wbics.bnt.p <- 
-  df_fish_presence %>% 
-  filter(species == "brown_trout", n == 1) %>% 
-  # select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
+# n.wbics.bnt.p <- 
+#   df_fish_presence %>% 
+#   filter(species == "brown_trout", n == 1) %>% 
+#   # select(-geometry) %>% 
+#   distinct(wbic) %>% 
+#   pull() %>% 
+#   length()
 
 # count of 1-2 class streams in which brown trout were present
-n.wbics.bnt.p.12 <- 
-  df_fish_presence %>% 
-  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-  filter(species == "brown_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
+# n.wbics.bnt.p.12 <- 
+#   df_fish_presence %>% 
+#   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
+#   filter(species == "brown_trout", n == 1) %>% 
+#   select(-geometry) %>% 
+#   distinct(wbic) %>% 
+#   pull() %>% 
+#   length()
 
 # count of streams in which brown trout were present
-n.wbics.bkt.p <- 
-  df_fish_presence %>% 
-  filter(species == "brook_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
+# n.wbics.bkt.p <- 
+#   df_fish_presence %>% 
+#   filter(species == "brook_trout", n == 1) %>% 
+#   select(-geometry) %>% 
+#   distinct(wbic) %>% 
+#   pull() %>% 
+#   length()
 
 # count of 1-2 class streams in which brown trout were present
-n.wbics.bkt.p.12 <- 
-  df_fish_presence %>% 
-  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-  filter(species == "brook_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
+# n.wbics.bkt.p.12 <- 
+#   df_fish_presence %>% 
+#   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
+#   filter(species == "brook_trout", n == 1) %>% 
+#   select(-geometry) %>% 
+#   distinct(wbic) %>% 
+#   pull() %>% 
+#   length()
 
 # count of streams in which brown trout were present
-n.wbics.tiger.p <- 
-  df_fish_presence %>% 
-  filter(species == "tiger_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
+# n.wbics.tiger.p <- 
+#   df_fish_presence %>% 
+#   filter(species == "tiger_trout", n == 1) %>% 
+#   select(-geometry) %>% 
+#   distinct(wbic) %>% 
+#   pull() %>% 
+#   length()
 
 # count of 1-2 class streams in which brown trout were present
-n.wbics.tiger.p.12 <- 
-  df_fish_presence %>% 
-  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-  filter(species == "tiger_trout", n == 1) %>% 
-  select(-geometry) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
+# n.wbics.tiger.p.12 <- 
+#   df_fish_presence %>% 
+#   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
+#   filter(species == "tiger_trout", n == 1) %>% 
+#   select(-geometry) %>% 
+#   distinct(wbic) %>% 
+#   pull() %>% 
+#   length()
 
-
-# sympatry
-n.wbics.bnt.p <- 
-  df_fish_presence %>% 
-  select(-geometry, -TROUT_CLAS) %>% 
-  filter(species %in% c("brown_trout","brook_trout")) %>%
-  pivot_wider(id_cols = 1:3, names_from = species, values_from = n)
-  distinct(wbic) %>% 
-  pull() %>% 
-  length()
-```
-
-```{r}
-# brown
-n.wbics.bnt.p
-# n.wbics.bnt.p.12
-
-# brook
-n.wbics.bkt.p
-# n.wbics.bkt.p.12
-
-# tiger
-n.wbics.tiger.p
-# n.wbics.tiger.p.12
 ```
 
 ## 4. calculate percentages
 
 #### brown trout 
 ```{r}
-# class 1-3
 (percent.wbics.bnt.present <- round((n.wbics.bnt.p/n.wbics.classed.surveyed) * 100, digits = 2))
-# class 1-2
-(percent.wbics.bnt.present12 <- round((n.wbics.bnt.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
+# (percent.wbics.bnt.present12 <- round((n.wbics.bnt.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
 ```
 
 #### brook trout
 ```{r}
-# class 1-3
 (percent.wbics.bkt.present <- round((n.wbics.bkt.p/n.wbics.classed.surveyed) * 100, digits = 2))
-# class 1-2
-(percent.wbics.bkt.present12 <- round((n.wbics.bkt.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
+# (percent.wbics.bkt.present12 <- round((n.wbics.bkt.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
 ```
 
 #### tiger trout
 ```{r}
-# class 1-3
 (percent.wbics.tgt.present <- round((n.wbics.tiger.p/n.wbics.classed.surveyed) * 100, digits = 2))
-# class 1-2
-(percent.wbics.tgt.present12 <- round((n.wbics.tiger.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
+# (percent.wbics.tgt.present12 <- round((n.wbics.tiger.p.12/n.wbics.classed12.surveyed) * 100, digits = 2))
 ```
+
+#### brook/brown sympatry
+```{r}
+(percent.wbics.tgt.present <- round((n.wbics.symp.p/n.wbics.classed.surveyed) * 100, digits = 2))
+```
+
 
 ### plot presence/absence
 
-```{r fig.align='center', echo=FALSE, fig.width=10}
+```{r eval=FALSE, fig.align='center', fig.width=10}
 panel_labels <- c(
   `brook_trout` = glue("Brook Trout ({percent.wbics.bkt.present}%)"),
   `brown_trout` = glue("Brown Trout ({percent.wbics.bnt.present}%)"),
@@ -605,7 +609,7 @@ pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
 ```
 
 
-```{r fig.align='center', echo=FALSE, fig.width=10}
+```{r fig.align='center', echo=FALSE, fig.width=10, eval=FALSE}
 panel_labels <- c(
   `brook_trout` = glue("Brook Trout ({percent.wbics.bkt.present12}%)"),
   `brown_trout` = glue("Brown Trout ({percent.wbics.bnt.present12}%)"),
