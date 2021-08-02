@@ -313,33 +313,13 @@ ggplot() +
 
 ## 3. Trout presence/abscence
 
-#### isolate and plot zero captures
+For surveys where no fish where captured but where trout (either species or both) were targeted, specied-sepfic zeros need to be added. 
 
 ```{r zero-caps, message=FALSE, echo=FALSE}
-# isolate zero captures
 df_no_fish <- 
   df_fish_raw %>% 
-  filter(species == "no_fish_captured") 
+  filter(species == "no_fish_captured")
 ```
-```{r map-zero-caps, fig.align='center', echo=FALSE}
-df_no_fish %>% 
-  left_join(df_surveys_drift_locs, by = "site.seq.no") %>% 
-  st_as_sf() %>% 
-  ggplot() + 
-  geom_sf(
-    data = poly_driftless, 
-    color = "black", alpha = 0) + 
-  geom_sf(
-    aes(fill = target.species), 
-    shape = 21, size = 2, color = "black", alpha = 0.75)  +
-  scale_fill_viridis_d(option = "D") + 
-  labs(x = "", y = "", 
-       fill = "Target species") +  
-  theme_void() +
-  theme(plot.title = element_text(hjust = 0.5))
-```
-
-#### convert to species-specific zeros and subset trout data:
 
 ```{r df-of-zeros, echo=FALSE}
 
@@ -379,7 +359,8 @@ df_trout_0s <-
   )
 
 ```
-```{r remove-no-caps-add-zeros}
+
+```{r update-df}
 df_fish <- 
   df_fish_raw %>% 
   filter(!species == "no_fish_captured") %>%
