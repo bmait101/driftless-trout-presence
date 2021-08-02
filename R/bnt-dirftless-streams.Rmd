@@ -315,12 +315,6 @@ ggplot() +
 
 For surveys where no fish where captured but where trout (either species or both) were targeted, specied-sepfic zeros need to be added. 
 
-```{r zero-caps, message=FALSE, echo=FALSE}
-df_no_fish <- 
-  df_fish_raw %>% 
-  filter(species == "no_fish_captured")
-```
-
 ```{r df-of-zeros, echo=FALSE}
 
 df_trout_0s <-
@@ -364,7 +358,7 @@ df_trout_0s <-
 df_fish <- 
   df_fish_raw %>% 
   filter(!species == "no_fish_captured") %>%
-  bind_rows(df_trout_0s) %>%  # this df is made in a hidden step previous to this
+  bind_rows(df_trout_0s) %>%  
   mutate(species = if_else(species == "tiger_trout_(i21_x_i22)", "tiger_trout", species)) %>% 
   filter(species %in% c("brook_trout","brown_trout","tiger_trout"))
 ```
@@ -373,113 +367,45 @@ df_fish <-
 
 #### convert catch data to presence data:
 ```{r convert-to-pa}
-# convert catch data to presence
 df_fish_presence <-
   df_fish %>% 
   group_by(wbic, survey.seq.no, species) %>% 
   summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
   mutate(n = if_else(n > 1, 1, 0))
 
-wide <- 
+df_fish_presence_wide <- 
   df_fish_presence %>% 
   pivot_wider(names_from = species, values_from = n, values_fill = 0) %>% 
   mutate(symp = brook_trout + brown_trout) %>% 
   mutate(symp = if_else(symp == 2, 1, 0))
 
-n.wbics.bnt.p <- 
-  wide %>% 
-  select(wbic, brown_trout) %>% 
-  filter(brown_trout == 1) %>% 
-  pull(wbic) %>% 
-  unique() %>% 
-  length()
-
-n.wbics.bkt.p <- 
-  wide %>% 
-  select(wbic, brook_trout) %>% 
-  filter(brook_trout == 1) %>% 
-  pull(wbic) %>% 
-  unique() %>% 
-  length()
-
-n.wbics.tiger.p <- 
-  wide %>% 
-  select(wbic, tiger_trout) %>% 
-  filter(tiger_trout == 1) %>% 
-  pull(wbic) %>% 
-  unique() %>% 
-  length()
-
-n.wbics.symp.p <- 
-  wide %>% 
-  select(wbic, symp) %>% 
-  filter(symp == 1) %>% 
-  pull(wbic) %>% 
-  unique() %>% 
-  length()
-
 ```
 
-#### count of surveyed wbics in which trout are present
+#### number wbics with trout present
+```{r}
+n.wbics.bnt.p <- 
+  df_fish_presence_wide %>% 
+  select(wbic, brown_trout) %>% 
+  filter(brown_trout == 1) %>% 
+  pull(wbic) %>% unique() %>% length()
 
-```{r echo=FALSE, eval=FALSE}
-# count of streams in which brown trout were present
-# n.wbics.bnt.p <- 
-#   df_fish_presence %>% 
-#   filter(species == "brown_trout", n == 1) %>% 
-#   # select(-geometry) %>% 
-#   distinct(wbic) %>% 
-#   pull() %>% 
-#   length()
+n.wbics.bkt.p <- 
+  df_fish_presence_wide %>% 
+  select(wbic, brook_trout) %>% 
+  filter(brook_trout == 1) %>% 
+  pull(wbic) %>% unique() %>% length()
 
-# count of 1-2 class streams in which brown trout were present
-# n.wbics.bnt.p.12 <- 
-#   df_fish_presence %>% 
-#   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-#   filter(species == "brown_trout", n == 1) %>% 
-#   select(-geometry) %>% 
-#   distinct(wbic) %>% 
-#   pull() %>% 
-#   length()
+n.wbics.tiger.p <- 
+  df_fish_presence_wide %>% 
+  select(wbic, tiger_trout) %>% 
+  filter(tiger_trout == 1) %>% 
+  pull(wbic) %>% unique() %>% length()
 
-# count of streams in which brown trout were present
-# n.wbics.bkt.p <- 
-#   df_fish_presence %>% 
-#   filter(species == "brook_trout", n == 1) %>% 
-#   select(-geometry) %>% 
-#   distinct(wbic) %>% 
-#   pull() %>% 
-#   length()
-
-# count of 1-2 class streams in which brown trout were present
-# n.wbics.bkt.p.12 <- 
-#   df_fish_presence %>% 
-#   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-#   filter(species == "brook_trout", n == 1) %>% 
-#   select(-geometry) %>% 
-#   distinct(wbic) %>% 
-#   pull() %>% 
-#   length()
-
-# count of streams in which brown trout were present
-# n.wbics.tiger.p <- 
-#   df_fish_presence %>% 
-#   filter(species == "tiger_trout", n == 1) %>% 
-#   select(-geometry) %>% 
-#   distinct(wbic) %>% 
-#   pull() %>% 
-#   length()
-
-# count of 1-2 class streams in which brown trout were present
-# n.wbics.tiger.p.12 <- 
-#   df_fish_presence %>% 
-#   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-#   filter(species == "tiger_trout", n == 1) %>% 
-#   select(-geometry) %>% 
-#   distinct(wbic) %>% 
-#   pull() %>% 
-#   length()
-
+n.wbics.symp.p <- 
+  df_fish_presence_wide %>% 
+  select(wbic, symp) %>% 
+  filter(symp == 1) %>% 
+  pull(wbic) %>% unique() %>% length()
 ```
 
 ## 4. calculate percentages
