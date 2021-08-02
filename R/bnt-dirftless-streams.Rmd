@@ -430,7 +430,7 @@ n.wbics.symp.p <-
 
 #### brook/brown sympatry
 ```{r}
-(percent.wbics.tgt.present <- round((n.wbics.symp.p/n.wbics.classed.surveyed) * 100, digits = 2))
+(percent.wbics.symp.present <- round((n.wbics.symp.p/n.wbics.classed.surveyed) * 100, digits = 2))
 ```
 
 
@@ -449,7 +449,9 @@ ggplot() +
           aes(color = TROUT_CLAS), show.legend = "line") +
   # geom_sf(data = df_surveys_drift_locs_classes %>% filter(is.na(TROUT_CLAS)),
   #         size = 1, shape = 16, color = "grey", alpha = 0.25) +
-  geom_sf(data = df_fish_presence %>% st_as_sf(), 
+  geom_sf(data = df_fish_presence %>% 
+            left_join(df_surveys_drift_classed, by = "survey.seq.no") %>% 
+            st_as_sf(), 
           aes(fill = as.factor(n)), show.legend = "point",
           shape = 21, size = 1, alpha = 0.5) + 
   scale_colour_manual(
@@ -477,8 +479,8 @@ ggplot() +
     fill = "Trout Presence") + 
   theme_void() + 
   theme(
-    plot.title = element_text(hjust = 0.5, family = "sans", size = 18, margin=margin(0,0,5,0)), 
-    plot.subtitle = element_text(hjust = 0.5, family = "sans", size = 12, margin=margin(0,0,10,0))
+    plot.title = element_text(hjust = 0, family = "sans", size = 18, margin=margin(0,0,5,0)), 
+    plot.subtitle = element_text(hjust = 0, family = "sans", size = 12, margin=margin(0,0,10,0))
     )
 
 path <- here::here("plots", "driftless_trout_presence")
