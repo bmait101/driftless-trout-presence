@@ -77,13 +77,11 @@ Download all surveys from 1994-2020 on streams using backpack and stream shocker
 # write_rds(df_efforts_raw, here("data", "efforts_raw_20210707.rds"))
 
 ```
-
 ```{r read-raw-survery-efforts-data}
 # data pulled from FMDB in hidden step
 df_surveys_raw <- read_rds(here("data", "surveys_raw_20210707.rds"))
 df_efforts_raw <- read_rds(here("data", "efforts_raw_20210707.rds"))
 ```
-
 ```{r filter-proofed-data, eval=TRUE, echo=FALSE}
 
 # list of good surveys status
@@ -131,7 +129,6 @@ lines_classed_drift <-
   st_intersection(poly_driftless)
 
 ```
-
 ```{r clip-data-to-driftless, cache=TRUE}
 
 # first clip surveys to driftless area
@@ -187,7 +184,6 @@ df_surveys_drift_locs <-
 # 
 # write_rds(df_fish_raw, here("data", "fish_raw_20210727.rds"))
 ```
-
 ```{r load-raw-fish-data}
 # data pulled from FMDB in hidden step
 df_fish_raw <- 
@@ -325,31 +321,6 @@ df_no_fish <-
   df_fish_raw %>% 
   filter(species == "no_fish_captured") 
 ```
-
-```{r tables-targs, echo=FALSE, include=FALSE}
-# target species
-df_no_fish %>% 
-    group_by(target.species) %>% 
-    tally() %>% 
-    arrange(desc(n)) %>% 
-    mutate(
-      target.species = 
-        stringr::str_replace_all(target.species, "_", " ")
-      ) %>% 
-    select('Target species' = target.species, Count = n) 
-
-# survey purpose
-df_no_fish %>% 
-    group_by(primary.survey.purpose) %>% 
-    tally() %>% 
-    arrange(desc(n)) %>% 
-    mutate(
-      primary.survey.purpose = 
-        stringr::str_replace_all(primary.survey.purpose, "_", " ")
-      ) %>% 
-    select('Primary Survey Purpose' = primary.survey.purpose, Count = n) 
-```
-
 ```{r map-zero-caps, fig.align='center', echo=FALSE}
 df_no_fish %>% 
   left_join(df_surveys_drift_locs, by = "site.seq.no") %>% 
@@ -408,7 +379,6 @@ df_trout_0s <-
   )
 
 ```
-
 ```{r remove-no-caps-add-zeros}
 df_fish <- 
   df_fish_raw %>% 
@@ -421,7 +391,7 @@ df_fish <-
 ### count of surveyed wbics in which trout are present:
 
 #### convert catch data to presence data:
-```{r}
+```{r convert-to-pa}
 # convert catch data to presence
 df_fish_presence <-
   df_fish %>% 
@@ -468,7 +438,6 @@ n.wbics.symp.p <-
   length()
 
 ```
-
 
 #### count of surveyed wbics in which trout are present
 
