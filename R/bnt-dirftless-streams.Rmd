@@ -23,7 +23,7 @@ What is the percentage of Driftless area streams in which Brook, Brown, or Tiger
 library(tidyverse)
 library(here)
 library(wdnr.fmdb)
-set_fmdb_credentials()
+# set_fmdb_credentials()
 library(rgdal)  
 library(sf)
 
