@@ -368,12 +368,12 @@ n.wbics.tiger.12 <-
   filter(species == "tiger_trout" & present == 1 & TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
   pull(wbic) %>% unique() %>% length()
 
-percent.wbics.symp <- 
+n.wbics.symp <- 
   df_fish_drift_pa %>% 
   filter(species == "symp" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
-percent.wbics.symp.12 <- 
+n.wbics.symp.12 <- 
   df_fish_drift_pa %>% 
   filter(species == "symp" & present == 1 & TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
   pull(wbic) %>% unique() %>% length()
@@ -410,10 +410,10 @@ percent.wbics.symp.12 <-
 
 ```{r plot, fig.width=12, fig.height=5}
 panel_labels <- c(
-  `brook_trout` = glue("Brook Trout ({percent.wbics.bkt}%)"),
-  `brown_trout` = glue("Brown Trout ({percent.wbics.bnt}%)"),
-  `symp` = glue("BKT/BNT Sympatry ({percent.wbics.symp}%)"),
-  `tiger_trout` = glue("Tiger Trout ({percent.wbics.tgt}%)")
+  `brook_trout` = glue::glue("Brook Trout ({percent.wbics.bkt}%)"),
+  `brown_trout` = glue::glue("Brown Trout ({percent.wbics.bnt}%)"),
+  `symp` = glue::glue("BKT/BNT Sympatry ({percent.wbics.symp}%)"),
+  `tiger_trout` = glue::glue("Tiger Trout ({percent.wbics.tgt}%)")
   )
 
 ggplot() + 
