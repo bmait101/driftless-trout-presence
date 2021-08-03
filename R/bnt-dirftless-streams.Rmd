@@ -97,6 +97,7 @@ df_efforts <-
 df_surveys <- semi_join(df_surveys, df_efforts, by = "survey.seq.no")
 
 # clean up 
+rm(df_surveys_raw);rm(df_efforts_raw)
 rm(targ.survs); rm(targ.spp)
 ```
 
@@ -116,11 +117,9 @@ lines <-
   here("data", "classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
   st_read() %>% 
   st_transform(crs = 3071) 
-
 ```
 
 ```{r clip-data-to-driftless, cache=TRUE}
-
 # clip the classified trout streams to driftless region
 lines_drift <- 
   lines %>% 
@@ -132,19 +131,51 @@ df_surveys_drift <-
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
   st_transform(crs = 3071) %>% 
   st_intersection(driftless)
+```
 
-# filter efforts for driftless surveys
-df_efforts_drift <- semi_join(df_efforts, df_surveys_drift, by = "survey.seq.no")
-  
+### join surevys sites to stream lines
+
+We only want surveys on classified trout streams, so we need to link survey sites to streams to see if they are on classified water or not:
+```{r nn-spatial-join-sites-to-lines, cache=TRUE, echo=FALSE}
 # isolate unique survey site locations in driftless
 df_surveys_drift_sites <- 
   df_surveys_drift %>% 
   distinct(site.seq.no, .keep_all = TRUE)
 
-# clean up 
-rm(df_surveys_raw); rm(df_surveys)
-rm(df_efforts_raw); rm(df_efforts)
+# # join each site to its nearest line neighbor within 50 m
+# df_surveys_drift_sites_lines <-
+#   st_join(df_surveys_drift_sites, lines, join = nngeo::st_nn, k = 1, maxdist = 50)
+# 
+# # save to file
+# write_rds(df_surveys_drift_sites_lines, here("data", "df_surveys_drift_sites_lines.rds"))
+
+# load from file
+df_surveys_drift_sites_lines <-
+  here("data", "df_surveys_drift_sites_lines.rds") %>%
+  read_rds() %>%
+  st_drop_geometry() %>% 
+  select(site.seq.no, TROUT_CLAS)
+
+# check classes
+df_surveys_drift_sites_lines %>% count(TROUT_CLAS)
+
+# add site classes to the survey data and remove NAs (unclassifed streams)
+df_surveys_drift_class <- 
+  left_join(df_surveys_drift, df_surveys_drift_sites_lines, by = "site.seq.no") %>% 
+  as_tibble() %>% 
+  filter(!is.na(TROUT_CLAS)) 
 ```
+
+### filter efforts for surveys on classified streams
+
+```{r}
+# filter efforts for driftless surveys on classified streams
+df_efforts_drift <- semi_join(df_efforts, df_surveys_drift_class, by = "survey.seq.no")
+  
+# clean up 
+rm(df_surveys); rm(df_efforts); rm(df_surveys_drift_sites_lines)
+```
+
 
 ### download fishraw data for driftless region surveys:
 
@@ -168,6 +199,9 @@ write_rds(df_fish_raw, here("data", "fish_raw_20210803.rds"))
 df_fish_raw <- read_rds(here("data", "fish_raw_20210803.rds"))
 ```
 
+
+
+
 ## 2. Count of surveys and streams (wbics)
 
 #### how many surveys and surevyed wbics?
@@ -188,35 +222,7 @@ n.surveys.wbics <- length(unique(df_surveys_drift$wbic))
 (n.classed.wbics <- length(unique(lines_drift$WBIC)))
 ```
 
-#### how many surveyed wbics in the driftless are also on classified streams:
-
-So we need to link survey sites to streams to see if they are on classified water or not:
-```{r nn-spatial-join-sites-to-lines, cache=TRUE, echo=FALSE}
-# # join each site to its nearest line neighbor within 50 m
-# df_surveys_drift_sites_lines <-
-#   st_join(df_surveys_drift_sites, lines, join = nngeo::st_nn, k = 1, maxdist = 50)
-# 
-# # save to file
-# write_rds(df_surveys_drift_sites_lines, here("data", "df_surveys_drift_sites_lines.rds"))
-
-# laod from file
-df_surveys_drift_sites_lines <-
-  here("data", "df_surveys_drift_sites_lines.rds") %>%
-  read_rds() %>%
-  st_drop_geometry() %>% 
-  select(site.seq.no, TROUT_CLAS)
-
-# check classes
-df_surveys_drift_sites_lines %>% count(TROUT_CLAS)
-
-# add site classes to the survey data
-df_surveys_drift <- 
-  left_join(df_surveys_drift, df_surveys_drift_sites_lines, by = "site.seq.no")
-```
-
-##### number of surveyed wbics in the driftless also on classified streams:
 ```{r echo=FALSE}
-# print unique surveys and wbics in driftles surveys data
 df_surveys_drift %>% 
   st_drop_geometry() %>% 
   summarise(across(c(survey.seq.no, wbic), ~ length(unique(.x))))
