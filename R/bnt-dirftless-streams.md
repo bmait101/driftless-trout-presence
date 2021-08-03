@@ -3,11 +3,6 @@ How common are trout in Driftless streams
 Bryan Maitland
 29 July 2021
 
-## TO DO
-
-  - purrr the calculations and streamline
-  - fix infographic plots
-
 ## Overview
 
 What is the percentage of Driftless area streams in which Brook, Brown,
@@ -313,7 +308,7 @@ pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
 Sys.time()
 ```
 
-    ## [1] "2021-08-03 15:19:12 CDT"
+    ## [1] "2021-08-03 15:20:44 CDT"
 
 ``` r
 git2r::repository()
@@ -321,7 +316,7 @@ git2r::repository()
 
     ## Local:    main C:/Users/maitlb/Documents/projects/driftless-trout-presence
     ## Remote:   main @ origin (https://github.com/bmait101/driftless-trout-presence.git)
-    ## Head:     [dcaf750] 2021-08-03: deleted silly extra code
+    ## Head:     [b192926] 2021-08-03: fresh knit
 
 ``` r
 sessionInfo()

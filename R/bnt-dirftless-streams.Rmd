@@ -5,11 +5,6 @@ date: "29 July 2021"
 output: github_document
 ---
 
-## TO DO 
-
-* purrr the calculations and streamline
-* fix infographic plots
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, 
                       dev = "ragg_png", res = 500, retina = 1)
