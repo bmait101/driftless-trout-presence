@@ -187,6 +187,38 @@ df_efforts_drift_class <- semi_join(df_efforts, df_surveys_drift_class, by = "su
 rm(df_surveys); rm(df_efforts); rm(df_surveys_drift_sites_lines)
 ```
 
+### plot of driftless survey sites and classified streams:
+
+```{r echo=FALSE, fig.align='center'}
+ggplot() + 
+  geom_sf(data = driftless, fill = "white") + 
+  geom_sf(data = lines_drift, aes(color = TROUT_CLAS), show.legend = "line") + 
+  geom_sf(data = df_surveys_drift_sites_unclassed, 
+          size = 1, alpha = 0.5, shape = 21, fill = "grey") + 
+  geom_sf(data = df_surveys_drift_sites_classed, aes(fill = TROUT_CLAS), 
+          show.legend = "point", size = 1, alpha = 0.5, shape = 21) + 
+  scale_colour_manual(
+    values = c("#53DC4D", "#00C5ff", "#004DA8"), 
+    guide = guide_legend(
+      override.aes = list(linetype = c("solid", "solid","solid"), 
+                          shape = c(NA, NA, NA),
+                          size = c(1,1,1)))
+    ) +
+  scale_fill_manual(
+    values = c("#53DC4D", "#00C5ff", "#004DA8", "grey"), 
+    guide = guide_legend(
+      override.aes = list(linetype = "blank",
+                          shape = 21, 
+                          size = 2))
+    ) +
+  labs(
+    # title = "Driftless Area survey locations", 
+    color = "Stream Class", 
+    fill = "Survey Site Class"
+    ) +
+  theme_void() + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
 
 ### download fishraw data for driftless region surveys:
 
@@ -247,51 +279,18 @@ lines_drift %>%
 n.classed.wbics <- length(unique(lines_drift$WBIC))
 
 # unique WBICS for 1-2 classed streams and set to object
-n.classed.wbics.12 <- 
+(n.classed.wbics.12 <- 
   lines_drift %>% 
   st_drop_geometry() %>% 
   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
   summarise(across(c(WBIC), ~ length(unique(.x)))) %>% 
-  pull()
-```
-
-### plot of driftless survey sites and classified streams:
-
-```{r echo=FALSE, fig.align='center'}
-ggplot() + 
-  geom_sf(data = driftless, fill = "white") + 
-  geom_sf(data = lines_drift, aes(color = TROUT_CLAS), show.legend = "line") + 
-  geom_sf(data = df_surveys_drift_sites_unclassed, 
-          size = 1, alpha = 0.5, shape = 21, fill = "grey") + 
-  geom_sf(data = df_surveys_drift_sites_classed, aes(fill = TROUT_CLAS), 
-          show.legend = "point", size = 1, alpha = 0.5, shape = 21) + 
-  scale_colour_manual(
-    values = c("#53DC4D", "#00C5ff", "#004DA8"), 
-    guide = guide_legend(
-      override.aes = list(linetype = c("solid", "solid","solid"), 
-                          shape = c(NA, NA, NA),
-                          size = c(1,1,1)))
-    ) +
-  scale_fill_manual(
-    values = c("#53DC4D", "#00C5ff", "#004DA8", "grey"), 
-    guide = guide_legend(
-      override.aes = list(linetype = "blank",
-                          shape = 21, 
-                          size = 2))
-    ) +
-  labs(
-    # title = "Driftless Area survey locations", 
-    color = "Stream Class", 
-    fill = "Survey Site Class"
-    ) +
-  theme_void() + 
-  theme(plot.title = element_text(hjust = 0.5))
+  pull() )
 ```
 
 
 ## 3. Trout presence/abscence
 
-For surveys where no fish where captured but where trout (either species or both) were targeted, specied-sepfic zeros need to be added. 
+For surveys where no fish where captured but where trout (either species or both) were targeted, species-specific zeros need to be added. 
 
 ```{r df-of-zeros, echo=FALSE}
 
