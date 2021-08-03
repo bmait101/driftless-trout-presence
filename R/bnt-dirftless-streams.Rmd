@@ -164,7 +164,7 @@ df_surveys_drift_class <-
   as_tibble() %>% 
   filter(!is.na(TROUT_CLAS)) 
 
-# sureveys sites for those on classified water
+# surveys sites for those on classified water
 df_surveys_drift_sites_classed <-
   df_surveys_drift_class %>% 
   distinct(site.seq.no, .keep_all = TRUE) %>% 
@@ -333,6 +333,12 @@ n.classed.wbics <- length(unique(lines_drift$WBIC))
   pull() )
 ```
 
+```{r}
+relig_income
+relig_income %>%
+  pivot_longer(!religion, names_to = "income", values_to = "count")
+```
+
 
 ### count of surveyed wbics in which trout are present:
 
@@ -343,68 +349,64 @@ df_fish_drift_pa <-
   group_by(wbic, survey.seq.no, species) %>% 
   summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
   mutate(n = if_else(n > 1, 1, 0)) %>% 
+  pivot_wider(names_from = species, values_from = n, values_fill = 0) %>%
+  mutate(symp = brook_trout + brown_trout) %>%
+  mutate(symp = if_else(symp == 2, 1, 0)) %>% 
+  pivot_longer(cols = 3:6, names_to = "species", values_to = "present") %>% 
   left_join(df_surveys_drift_class %>%
               select(survey.seq.no, TROUT_CLAS, geometry), 
             by = "survey.seq.no") %>% 
   st_as_sf()
 
-df_fish_drift_pa_wide <- 
-  df_fish_drift_pa %>% 
-  st_drop_geometry() %>% 
-  pivot_wider(names_from = species, values_from = n, values_fill = 0) %>% 
-  mutate(symp = brook_trout + brown_trout) %>% 
-  mutate(symp = if_else(symp == 2, 1, 0))
+# df_fish_drift_pa_wide <- 
+#   df_fish_drift_pa %>%
+#   st_drop_geometry() %>%
+#   pivot_wider(names_from = species, values_from = n, values_fill = 0) %>%
+#   mutate(symp = brook_trout + brown_trout) %>%
+#   mutate(symp = if_else(symp == 2, 1, 0))
 
 ```
 
 #### number wbics with trout present
 ```{r}
 n.wbics.bnt <- 
-  df_fish_drift_pa_wide %>% 
-  select(wbic, brown_trout) %>% 
-  filter(brown_trout == 1) %>% 
+  df_fish_drift_pa %>% 
+  filter(species == "brown_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.bnt.12 <- 
-  df_fish_drift_pa_wide %>% 
-  select(wbic, TROUT_CLAS, brown_trout) %>% 
-  filter(brown_trout == 1, TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
+  df_fish_drift_pa %>% 
+  filter(species == "brown_trout" & present == 1 & TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.bkt <- 
-  df_fish_drift_pa_wide %>% 
-  select(wbic, brook_trout) %>% 
-  filter(brook_trout == 1) %>% 
+  df_fish_drift_pa %>% 
+  filter(species == "brook_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.bkt.12 <- 
-  df_fish_drift_pa_wide %>% 
-  select(wbic, TROUT_CLAS, brook_trout) %>% 
-  filter(brook_trout == 1, TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
+  df_fish_drift_pa %>% 
+  filter(species == "brook_trout" & present == 1 & TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.tiger <- 
-  df_fish_drift_pa_wide %>% 
-  select(wbic, tiger_trout) %>% 
-  filter(tiger_trout == 1) %>% 
+  df_fish_drift_pa %>% 
+  filter(species == "tiger_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.tiger.12 <- 
-  df_fish_drift_pa_wide %>% 
-  select(wbic, TROUT_CLAS, tiger_trout) %>% 
-  filter(tiger_trout == 1, TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
+  df_fish_drift_pa %>% 
+  filter(species == "tiger_trout" & present == 1 & TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
   pull(wbic) %>% unique() %>% length()
 
-n.wbics.symp <- 
-  df_fish_drift_pa_wide %>% 
-  select(wbic, symp) %>% 
-  filter(symp == 1) %>% 
+percent.wbics.symp <- 
+  df_fish_drift_pa %>% 
+  filter(species == "symp" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
-n.wbics.symp.12 <- 
-  df_fish_drift_pa_wide %>% 
-  select(wbic, TROUT_CLAS, symp) %>% 
-  filter(symp == 1, TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
+percent.wbics.symp.12 <- 
+  df_fish_drift_pa %>% 
+  filter(species == "symp" & present == 1 & TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
   pull(wbic) %>% unique() %>% length()
 ```
 
@@ -441,13 +443,14 @@ n.wbics.symp.12 <-
 panel_labels <- c(
   `brook_trout` = glue("Brook Trout ({percent.wbics.bkt}%)"),
   `brown_trout` = glue("Brown Trout ({percent.wbics.bnt}%)"),
+  `symp` = glue("BKT/BNT Sympatry ({percent.wbics.symp}%)"),
   `tiger_trout` = glue("Tiger Trout ({percent.wbics.tgt}%)")
   )
 
 ggplot() + 
   geom_sf(data = driftless, fill = "white") +
   geom_sf(data = lines_drift, aes(color = TROUT_CLAS), show.legend = "line") +
-  geom_sf(data = df_fish_drift_pa %>% filter(n == 1), aes(fill = TROUT_CLAS), 
+  geom_sf(data = df_fish_drift_pa %>% filter(present == 1), aes(fill = TROUT_CLAS), 
           show.legend = "point", size = 1, alpha = 0.5, shape = 21) + 
   scale_colour_manual(
     values = c("#53DC4D", "#00C5ff", "#004DA8"), 
@@ -459,11 +462,9 @@ ggplot() +
   scale_fill_manual(
     values = c("#53DC4D", "#00C5ff", "#004DA8", "grey"), 
     guide = guide_legend(
-      override.aes = list(linetype = "blank",
-                          shape = 21, 
-                          size = 2))
+      override.aes = list(linetype = "blank", shape = 21, size = 2, alpha = 1))
     ) +
-  facet_wrap(vars(species), labeller = as_labeller(panel_labels)) +
+  facet_wrap(vars(species), labeller = as_labeller(panel_labels), nrow = 1) +
   labs(
     # title = "How common are trout in Driftless Area streams?",
     title ="Percent of all classified and surveyed streams with trout present:",
@@ -473,72 +474,14 @@ ggplot() +
     fill = "Trout Presence") + 
   theme_void() + 
   theme(
-    plot.title = element_text(hjust = 0, family = "sans", size = 18, margin=margin(0,0,5,0)), 
-    plot.subtitle = element_text(hjust = 0, family = "sans", size = 12, margin=margin(0,0,10,0))
+    plot.title = element_text(hjust=0.5, family="sans", size=18, margin=margin(0,0,10,0)), 
+    plot.subtitle = element_text(hjust=0, family="sans", size=12, margin=margin(0,0,10,0))
     )
 
 path <- here::here("plots", "driftless_trout_presence")
-ggsave(glue::glue("{path}.pdf"), width = 10, height = 5, device = cairo_pdf)
+ggsave(glue::glue("{path}.pdf"), width = 12, height = 5, device = cairo_pdf)
 pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
             filenames = glue::glue("{path}.png"),
             format = "png", dpi = 300)
-  
-```
-
-
-```{r fig.align='center', echo=FALSE, fig.width=10, eval=FALSE}
-# panel_labels <- c(
-#   `brook_trout` = glue("Brook Trout ({percent.wbics.bkt.present12}%)"),
-#   `brown_trout` = glue("Brown Trout ({percent.wbics.bnt.present12}%)"),
-#   `tiger_trout` = glue("Tiger Trout ({percent.wbics.tgt.present12}%)")
-#   )
-# 
-# ggplot() + 
-#   geom_sf(data = poly_driftless, fill = "white") +
-#   geom_sf(data = lines_classed_drift %>% 
-#             filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")), 
-#           aes(color = TROUT_CLAS), show.legend = "line") +
-#   # geom_sf(data = df_surveys_drift_locs_classes %>% 
-#   #           filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")),
-#   #         size = 1, shape = 16, color = "grey", alpha = 0.25) +
-#   geom_sf(data = df_fish_presence %>% 
-#             st_as_sf() %>% 
-#             filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")), 
-#           aes(fill = as.factor(n)), show.legend = "point",
-#           shape = 21, size = 1, alpha = 0.5) + 
-#   scale_colour_manual(
-#     values = c("#53DC4D", "#00C5ff"), 
-#     guide = guide_legend(
-#       override.aes = list(linetype = c("solid", "solid"), 
-#                           shape = c(NA, NA),
-#                           size = c(1,1)))
-#     ) +
-#   scale_fill_manual(
-#     values = c("black", "white"), 
-#     labels = c("Absent", "Present"),
-#     guide = guide_legend(
-#       override.aes = list(linetype = "blank",
-#                           shape = 21, alpha = 1,
-#                           size = 2))
-#     ) +
-#   facet_wrap(vars(species), labeller = as_labeller(panel_labels)) +
-#   labs(
-#     # title = "How common are trout in Driftless Area streams?",
-#     title ="Percent of class I & II surveyed streams with trout present:",
-#     # subtitle ="Percent of class I & II surveyed streams with trout present:",
-#     # caption = "Note: light grey dots depict all surveys sites in the region",
-#     color = "Stream Class", 
-#     fill = "Trout Presence") + 
-#   theme_void() + 
-#   theme(
-#     plot.title = element_text(hjust = 0.5, family = "sans", size = 18, margin=margin(0,0,5,0)), 
-#     plot.subtitle = element_text(hjust = 0.5, family = "sans", size = 12, margin=margin(0,0,10,0))
-#     )
-# 
-# path <- here::here("plots", "driftless_trout_presence_class12")
-# ggsave(glue::glue("{path}.pdf"), width = 10, height = 5, device = cairo_pdf)
-# pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
-#             filenames = glue::glue("{path}.png"),
-#             format = "png", dpi = 300)
   
 ```
