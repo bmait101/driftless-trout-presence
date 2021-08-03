@@ -170,7 +170,7 @@ df_surveys_drift_class <-
 
 ```{r}
 # filter efforts for driftless surveys on classified streams
-df_efforts_drift <- semi_join(df_efforts, df_surveys_drift_class, by = "survey.seq.no")
+df_efforts_drift_class <- semi_join(df_efforts, df_surveys_drift_class, by = "survey.seq.no")
   
 # clean up 
 rm(df_surveys); rm(df_efforts); rm(df_surveys_drift_sites_lines)
@@ -181,7 +181,7 @@ rm(df_surveys); rm(df_efforts); rm(df_surveys_drift_sites_lines)
 
 ```{r pull-raw-fish, echo=FALSE}
 # set chunks of visits seqs for pulling fish data
-vs <- unique(df_efforts_drift$visit.fish.seq.no) 
+vs <- unique(df_efforts_drift_class$visit.fish.seq.no) 
 vs_chunks <- split(vs, ceiling(seq_along(vs)/1000))  
 
 df_fish_drift <- 
@@ -193,13 +193,11 @@ rm(vs); rm(vs_chunks);
 rm(length_deleted_rows); rm(length_warning_rows)
 
 # write to file
-write_rds(df_fish_raw, here("data", "fish_raw_20210803.rds"))
+write_rds(df_fish_drift, here("data", "fish_raw_20210803.rds"))
 
 # load
-df_fish_raw <- read_rds(here("data", "fish_raw_20210803.rds"))
+df_fish_drift <- read_rds(here("data", "fish_raw_20210803.rds"))
 ```
-
-
 
 
 ## 2. Count of surveys and streams (wbics)
