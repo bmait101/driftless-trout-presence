@@ -186,18 +186,12 @@ n.wbics.surveyed <- length(unique(df_surveys_drift$wbic))
 #### number of distinct wbics in classified trout streams layer:
 
 ```{r echo=FALSE}
+lines_drift %>% 
+  st_drop_geometry() %>% 
+  summarise(across(c(WBIC), ~ length(unique(.x))))
 
 n.wbics.classified <- length(unique(lines_drift$WBIC))
 ```
-
-and by class:
-
-```{r echo=FALSE}
-lines_drift %>% 
-  st_drop_geometry() %>% 
-  count(TROUT_CLAS)
-```
-
 
 #### number of surveyed wbics in the driftless also on classified streams:
 
