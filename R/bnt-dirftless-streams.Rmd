@@ -22,7 +22,7 @@ What is the percentage of Driftless area streams in which Brook, Brown, or Tiger
 library(tidyverse)
 library(here)
 library(wdnr.fmdb)
-# set_fmdb_credentials()
+set_fmdb_credentials()
 library(rgdal)  
 library(sf)
 library(glue)
@@ -36,200 +36,164 @@ library(glue)
 Download all surveys from 1994-2020 on streams using backpack and stream shockers, retaining only surveys that are complete and proofed:
 
 ```{r pull-save-raw-surveys-efforts-data, echo=FALSE}
-
-# start <- Sys.time()
-# 
 # # params for pulling surveys and efforts
-# yrs <- list(1994:1999,2000:2005,2006:2011,2012:2016,2017:2020)  
+# yrs <- list(1994:1999,2000:2005,2006:2011,2012:2016,2017:2020)
 # waterbody_types <- c( "wadable_stream", "non-wadable_stream", "stream")
 # gear_types <- c("stream_shocker","backpack_shocker")
 # 
-# # set loop output
-# full.s <- list()
-# full.e <- list()
+# # pull surveys
+# df_surveys_raw <- 
+#   yrs %>% 
+#   map_df(~get_fmdb_surveys(year = ., waterbody_type = waterbody_types))
 # 
-# # run loop
-# for (y in seq_along(yrs)) {
-#   
-#   surveys <- get_fmdb_surveys(year = yrs[[y]], 
-#                               waterbody_type = waterbody_types) 
-#   
-#   efforts <- get_fmdb_efforts(year = yrs[[y]], 
-#                         waterbody_type = waterbody_types,
-#                         gear = gear_types)
-#   full.s[[y]] <- surveys
-#   full.e[[y]] <- efforts
-#   
-# }
+# # pulls efforts
+# df_efforts_raw <- 
+#   yrs %>% 
+#   map_df(~get_fmdb_efforts(year = ., waterbody_type = waterbody_types, gear = gear_types))
 # 
-# # bind data together
-# df_surveys_raw <- bind_rows(full.s)
-# df_efforts_raw <- bind_rows(full.e) 
+# # clean up
+# rm(yrs); rm(gear_types); rm(waterbody_types)
 # 
-# 
-# Sys.time() - start  # ~ 48 seconds
-# 
-# # clean up 
-# rm(full.e); rm(full.s); rm(yrs); rm(y); rm(start)
-# rm(efforts); rm(surveys)
-# 
-# write_rds(df_surveys_raw, here("data", "surveys_raw_20210707.rds"))
-# write_rds(df_efforts_raw, here("data", "efforts_raw_20210707.rds"))
+# # wrtie to file
+# write_rds(df_surveys_raw, here("data", "surveys_raw_20210803.rds"))
+# write_rds(df_efforts_raw, here("data", "efforts_raw_20210803.rds"))
 
+# load
+df_surveys_raw <- read_rds(here("data", "surveys_raw_20210803.rds"))
+df_efforts_raw <- read_rds(here("data", "efforts_raw_20210803.rds"))
 ```
-```{r read-raw-survery-efforts-data}
-# data pulled from FMDB in hidden step
-df_surveys_raw <- read_rds(here("data", "surveys_raw_20210707.rds"))
-df_efforts_raw <- read_rds(here("data", "efforts_raw_20210707.rds"))
-```
-```{r filter-proofed-data, eval=TRUE, echo=FALSE}
 
-# list of good surveys status
+```{r clean-survs-effs, eval=TRUE, echo=FALSE}
+
+# # check surveys with no match in the efforts (which are for electofishing only)
+# df_surveys_raw %>% 
+#   anti_join(df_efforts_raw, by = "survey.seq.no") 
+# # these are IBI surveys or those with efforts that are "multiple_gear_types"
+
+# filter for unique surveys in the efforts data
+df_surveys <- semi_join(df_surveys_raw, df_efforts_raw, by = "survey.seq.no")
+
+# filter for proofed survey data
 targ.survs <- c(
   "data_entry_complete_and_proofed",
   "historical_data_complete_and_proofed",
   "historical_data_entry_complete",
-  "historical_data_load_status_unknown"
-  )
+  "historical_data_load_status_unknown")
+df_surveys <- filter(df_surveys, survey.status %in% targ.survs)
 
-# filter surveys by unique efforts and status
-df_surveys <- 
-  df_surveys_raw %>% 
-  filter(survey.seq.no %in% unique(df_efforts_raw$survey.seq.no)) %>% 
-  filter(survey.status %in% targ.survs)
+# set target species
+targ.spp <- c(
+  "all_species","gamefish_species","gamefish_panfish",
+  "trout_spp","brown_trout","brook_trout","rainbow_trout")
 
-# filter effort on filtered surveys and remove 315 sites
+# filter
 df_efforts <- 
   df_efforts_raw %>% 
-  filter(survey.seq.no %in% df_surveys$survey.seq.no) %>%
-  filter(site.seq.no != 315)
+  semi_join(df_surveys, by = "survey.seq.no") %>% 
+  filter(target.species %in% targ.spp | secondary.target.species %in% targ.spp) %>% 
+  filter(site.seq.no != 315) 
 
-# clean up
-rm(df_surveys_raw); rm(df_efforts_raw)
+# surveys again by the cleaned efforts
+df_surveys <- semi_join(df_surveys, df_efforts, by = "survey.seq.no")
+
+# clean up 
+rm(targ.survs); rm(targ.spp)
 ```
 
 
 ### clip survey data to driftless region:
 
 ```{r load-lines-polys, cache=TRUE, results = 'hide', echo=FALSE}
-poly_driftless <- 
+# load driftless polygon
+driftless <- 
   here("data", "ecoregions","wi_eco_l3.shp") %>% 
   st_read() %>% 
   st_transform(crs = 3071) %>% 
   filter(US_L3CODE == "52")
 
-lines_classed <- 
+# load classified trout stream lines
+lines <- 
   here("data", "classified_trout_streams","Classified_Trout_Stream_Lines.shp") %>% 
   st_read() %>% 
   st_transform(crs = 3071) 
 
-# clip the classified trout streams to driftless region
-lines_classed_drift <- 
-  lines_classed %>% 
-  st_intersection(poly_driftless)
-
 ```
+
 ```{r clip-data-to-driftless, cache=TRUE}
 
-# first clip surveys to driftless area
+# clip the classified trout streams to driftless region
+lines_drift <- 
+  lines %>% 
+  st_intersection(driftless)
+
+# make surveys spatial and clip to driftless area
 df_surveys_drift <- 
   df_surveys %>% 
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
   st_transform(crs = 3071) %>% 
-  st_intersection(poly_driftless)
+  st_intersection(driftless)
 
-# then filter efforts to clipped surveys
-df_efforts_drift <- 
-  df_efforts %>% 
-  filter(survey.seq.no %in% df_surveys_drift$survey.seq.no)
-
+# filter efforts for driftless surveys
+df_efforts_drift <- semi_join(df_efforts, df_surveys_drift, by = "survey.seq.no")
+  
 # isolate unique survey site locations in driftless
-df_surveys_drift_locs <- 
+df_surveys_drift_sites <- 
   df_surveys_drift %>% 
-  distinct(site.seq.no, .keep_all = TRUE) %>% 
-  select(wbic, site.seq.no) 
+  distinct(site.seq.no, .keep_all = TRUE)
+
+# clean up 
+rm(df_surveys_raw); rm(df_surveys)
+rm(df_efforts_raw); rm(df_efforts)
 ```
 
 ### download fishraw data for driftless region surveys:
 
 ```{r pull-raw-fish, echo=FALSE}
-# start <- Sys.time()
-# 
-# # using efforts, download fish data 1000 efforts at a time
-# vs <- unique(df_efforts_drift$visit.fish.seq.no) 
-# 
-# # split efforts in 1000 chunks
-# chunks <- split(vs, ceiling(seq_along(vs)/1000))  
-# 
-# # set loop output
-# full.dat <- list()
-# 
-# for (i in (1:length(chunks))) {  
-#   d <- get_fmdb_fishraw(visit_seq = chunks[[i]])
-#   full.dat[[i]] <- d
-# }
-# 
-# df_fish_raw <- bind_rows(full.dat)
-# 
-# # Check deleted rows and warnings
-# length_deleted_rows 
-# length_warning_rows  # 
-# 
-# Sys.time() - start  # ~ 3 min minutes
-# 
-# # clean up environment
-# rm(vs); rm(chunks); rm(full.dat); rm(d); rm(i); rm(start)
-# rm(length_deleted_rows)
-# rm(length_warning_rows)
-# 
-# write_rds(df_fish_raw, here("data", "fish_raw_20210727.rds"))
-```
-```{r load-raw-fish-data}
-# data pulled from FMDB in hidden step
-df_fish_raw <- 
-  here("data", "fish_raw_20210727.rds") %>% 
-  read_rds() 
+# set chunks of visits seqs for pulling fish data
+vs <- unique(df_efforts_drift$visit.fish.seq.no) 
+vs_chunks <- split(vs, ceiling(seq_along(vs)/1000))  
+
+df_fish_drift <- 
+  vs_chunks %>% 
+  map_df(~get_fmdb_fishraw(visit_seq = .))
+
+# clean up
+rm(vs); rm(vs_chunks); 
+rm(length_deleted_rows); rm(length_warning_rows)
+
+# write to file
+write_rds(df_fish_raw, here("data", "fish_raw_20210803.rds"))
+
+# load
+df_fish_raw <- read_rds(here("data", "fish_raw_20210803.rds"))
 ```
 
 ## 2. Count of surveys and streams (wbics)
 
-#### number of distinct surveys in driftless from 1994-2020:
+#### unique surveys and wbics
 
-```{r echo=FALSE}
-n.surveys <- 
-  df_surveys_drift %>% 
-  distinct(survey.seq.no) %>% 
-  pull() %>% 
-  length() %>% 
-  print()
+```{r}
+# print uniqe surveys and wbics in driftles surveys data
+df_surveys_drift %>% 
+  st_drop_geometry() %>% 
+  summarise(across(c(survey.seq.no, wbic), ~ length(unique(.x))))
+
+n.surveys <- length(unique(df_surveys_drift$survey.seq.no))
+n.wbics.surveyed <- length(unique(df_surveys_drift$wbic))
 ```
 
-#### number of distinct wbics in driftless suvrvey data:
-
-```{r echo=FALSE}
-n.wbics.surveyed <- 
-  df_surveys_drift %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length() %>% 
-  print()
-```
 
 #### number of distinct wbics in classified trout streams layer:
 
 ```{r echo=FALSE}
-n.wbics.classified <- 
-  lines_classed_drift %>% 
-  distinct(WBIC) %>% 
-  pull() %>% 
-  length() %>% 
-  print()
+
+n.wbics.classified <- length(unique(lines_drift$WBIC))
 ```
 
 and by class:
 
 ```{r echo=FALSE}
-lines_classed_drift %>% 
+lines_drift %>% 
   st_drop_geometry() %>% 
   count(TROUT_CLAS)
 ```
