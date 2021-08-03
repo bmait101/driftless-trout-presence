@@ -164,6 +164,17 @@ df_surveys_drift_class <-
   left_join(df_surveys_drift, df_surveys_drift_sites_lines, by = "site.seq.no") %>% 
   as_tibble() %>% 
   filter(!is.na(TROUT_CLAS)) 
+
+# sureveys sites for those on classified water
+df_surveys_drift_sites_classed <-
+  df_surveys_drift_class %>% 
+  distinct(site.seq.no, .keep_all = TRUE) %>% 
+  st_as_sf()
+
+# unclassed sites
+df_surveys_drift_sites_unclassed <-
+  df_surveys_drift_sites %>% 
+  filter(!site.seq.no %in% df_surveys_drift_sites_classed$site.seq.no)
 ```
 
 ### filter efforts for surveys on classified streams
@@ -205,58 +216,55 @@ df_fish_drift <- read_rds(here("data", "fish_raw_20210803.rds"))
 #### how many surveys and surevyed wbics?
 
 ```{r}
-# print unique surveys and wbics in driftles surveys data
-df_surveys_drift %>% 
-  st_drop_geometry() %>% 
+# unique surveys and wbics in driftles surveys data
+df_surveys_drift_class %>% 
   summarise(across(c(survey.seq.no, wbic), ~ length(unique(.x))))
 
-n.surveys <- length(unique(df_surveys_drift$survey.seq.no))
-n.surveys.wbics <- length(unique(df_surveys_drift$wbic))
+# set to objects
+n.surveys <- length(unique(df_surveys_drift_class$survey.seq.no))
+n.surveyed.wbics <- length(unique(df_surveys_drift_class$wbic))
+
+# unique surveys and wbics in driftles surveys data class 1-2
+n.surveyed.wbics.12 <- 
+  df_surveys_drift_class %>% 
+  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
+  summarise(across(c(wbic), ~ length(unique(.x)))) %>% 
+  pull()
 ```
 
 #### how many wbics in classified stream layer?
 
 ```{r echo=FALSE}
-(n.classed.wbics <- length(unique(lines_drift$WBIC)))
-```
+# count of lines in each stream class (total = 1011)
+lines_drift %>% st_drop_geometry() %>% count(TROUT_CLAS)
 
-```{r echo=FALSE}
-df_surveys_drift %>% 
+# unique WBICS for all classed streams
+lines_drift %>% 
   st_drop_geometry() %>% 
-  summarise(across(c(survey.seq.no, wbic), ~ length(unique(.x))))
+  summarise(across(c(WBIC), ~ length(unique(.x))))
 
-n.surveys <- length(unique(df_surveys_drift$survey.seq.no))
+# set to object
+n.classed.wbics <- length(unique(lines_drift$WBIC))
 
-n.wbics.classed.surveyed <- 
-  df_surveys_drift %>% 
-  filter(!is.na(TROUT_CLAS)) %>% 
-  st_drop_geometry() %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length() %>% 
-  print()
-```
-
-##### number of surveyed wbics in the driftless also on classified streams I/II:
-```{r count-wbics-in-classed12-surved, echo=FALSE}
-n.wbics.classed12.surveyed <- 
-  df_surveys_drift_classed %>% 
+# unique WBICS for 1-2 classed streams and set to object
+n.classed.wbics.12 <- 
+  lines_drift %>% 
   st_drop_geometry() %>% 
   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-  distinct(wbic) %>% 
-  pull() %>% 
-  length() %>% 
-  print()
+  summarise(across(c(WBIC), ~ length(unique(.x)))) %>% 
+  pull()
 ```
 
 ### plot of driftless survey sites and classified streams:
 
 ```{r echo=FALSE, fig.align='center'}
 ggplot() + 
-  geom_sf(data = poly_driftless) + 
-  geom_sf(data = lines_classed_drift, aes(color = TROUT_CLAS), show.legend = "line") + 
-  geom_sf(data = df_surveys_drift_classed, aes(fill = TROUT_CLAS), show.legend = "point", 
-          size = 1, alpha = 0.5, shape = 21) + 
+  geom_sf(data = driftless, fill = "white") + 
+  geom_sf(data = lines_drift, aes(color = TROUT_CLAS), show.legend = "line") + 
+  geom_sf(data = df_surveys_drift_sites_unclassed, 
+          size = 1, alpha = 0.5, shape = 21, fill = "grey") + 
+  geom_sf(data = df_surveys_drift_sites_classed, aes(fill = TROUT_CLAS), 
+          show.legend = "point", size = 1, alpha = 0.5, shape = 21) + 
   scale_colour_manual(
     values = c("#53DC4D", "#00C5ff", "#004DA8"), 
     guide = guide_legend(
