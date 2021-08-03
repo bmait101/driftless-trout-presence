@@ -17,13 +17,7 @@ or Tiger Trout are present?
 library(tidyverse)
 library(here)
 library(wdnr.fmdb)
-set_fmdb_credentials()
-```
-
-    ## Please enter password in TK window (Alt+Tab)
-    ## Please enter password in TK window (Alt+Tab)
-
-``` r
+# set_fmdb_credentials()
 library(rgdal)  
 library(sf)
 
@@ -126,54 +120,6 @@ n.surveyed.wbics.12 <-
     ## 1  761
 
     ## [1] 679
-
-``` r
-relig_income
-```
-
-    ## # A tibble: 18 x 11
-    ##    religion `<$10k` `$10-20k` `$20-30k` `$30-40k` `$40-50k` `$50-75k` `$75-100k`
-    ##    <chr>      <dbl>     <dbl>     <dbl>     <dbl>     <dbl>     <dbl>      <dbl>
-    ##  1 Agnostic      27        34        60        81        76       137        122
-    ##  2 Atheist       12        27        37        52        35        70         73
-    ##  3 Buddhist      27        21        30        34        33        58         62
-    ##  4 Catholic     418       617       732       670       638      1116        949
-    ##  5 Don’t k~      15        14        15        11        10        35         21
-    ##  6 Evangel~     575       869      1064       982       881      1486        949
-    ##  7 Hindu          1         9         7         9        11        34         47
-    ##  8 Histori~     228       244       236       238       197       223        131
-    ##  9 Jehovah~      20        27        24        24        21        30         15
-    ## 10 Jewish        19        19        25        25        30        95         69
-    ## 11 Mainlin~     289       495       619       655       651      1107        939
-    ## 12 Mormon        29        40        48        51        56       112         85
-    ## 13 Muslim         6         7         9        10         9        23         16
-    ## 14 Orthodox      13        17        23        32        32        47         38
-    ## 15 Other C~       9         7        11        13        13        14         18
-    ## 16 Other F~      20        33        40        46        49        63         46
-    ## 17 Other W~       5         2         3         4         2         7          3
-    ## 18 Unaffil~     217       299       374       365       341       528        407
-    ## # ... with 3 more variables: `$100-150k` <dbl>, `>150k` <dbl>, `Don't
-    ## #   know/refused` <dbl>
-
-``` r
-relig_income %>%
-  pivot_longer(!religion, names_to = "income", values_to = "count")
-```
-
-    ## # A tibble: 180 x 3
-    ##    religion income             count
-    ##    <chr>    <chr>              <dbl>
-    ##  1 Agnostic <$10k                 27
-    ##  2 Agnostic $10-20k               34
-    ##  3 Agnostic $20-30k               60
-    ##  4 Agnostic $30-40k               81
-    ##  5 Agnostic $40-50k               76
-    ##  6 Agnostic $50-75k              137
-    ##  7 Agnostic $75-100k             122
-    ##  8 Agnostic $100-150k            109
-    ##  9 Agnostic >150k                 84
-    ## 10 Agnostic Don't know/refused    96
-    ## # ... with 170 more rows
 
 ### count of surveyed wbics in which trout are present:
 
@@ -367,7 +313,7 @@ pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
 Sys.time()
 ```
 
-    ## [1] "2021-08-03 15:11:28 CDT"
+    ## [1] "2021-08-03 15:19:12 CDT"
 
 ``` r
 git2r::repository()
@@ -375,7 +321,7 @@ git2r::repository()
 
     ## Local:    main C:/Users/maitlb/Documents/projects/driftless-trout-presence
     ## Remote:   main @ origin (https://github.com/bmait101/driftless-trout-presence.git)
-    ## Head:     [293cd75] 2021-08-03: update readme
+    ## Head:     [dcaf750] 2021-08-03: deleted silly extra code
 
 ``` r
 sessionInfo()
@@ -404,21 +350,20 @@ sessionInfo()
     ## [13] ggplot2_3.3.3   tidyverse_1.3.0
     ## 
     ## loaded via a namespace (and not attached):
-    ##  [1] httr_1.4.2         jsonlite_1.7.1     modelr_0.1.8       assertthat_0.2.1  
-    ##  [5] getPass_0.2-2      pdftools_3.0.1     askpass_1.1        highr_0.8         
-    ##  [9] blob_1.2.1         cellranger_1.1.0   yaml_2.2.1         qpdf_1.1          
-    ## [13] pillar_1.4.7       backports_1.1.10   lattice_0.20-41    glue_1.4.2        
-    ## [17] digest_0.6.27      rvest_0.3.6        colorspace_1.4-1   htmltools_0.5.0   
-    ## [21] pkgconfig_2.0.3    broom_0.7.4        haven_2.3.1        scales_1.1.1      
-    ## [25] git2r_0.28.0       generics_0.1.0     farver_2.0.3       ellipsis_0.3.2    
-    ## [29] withr_2.4.1        cli_2.5.0          magrittr_2.0.1     crayon_1.4.0      
-    ## [33] readxl_1.3.1       evaluate_0.14      fs_1.5.0           fansi_0.4.1       
-    ## [37] xml2_1.3.2         class_7.3-17       textshaping_0.3.4  tools_4.0.2       
-    ## [41] hms_1.0.0          lifecycle_0.2.0    munsell_0.5.0      reprex_1.0.0      
-    ## [45] compiler_4.0.2     e1071_1.7-4        systemfonts_1.0.1  rlang_0.4.10      
-    ## [49] classInt_0.4-3     units_0.6-7        grid_4.0.2         rstudioapi_0.13   
-    ## [53] tcltk_4.0.2        rmarkdown_2.6      gtable_0.3.0       DBI_1.1.1         
-    ## [57] R6_2.5.0           lubridate_1.7.9    knitr_1.31         keyring_1.1.0     
-    ## [61] utf8_1.1.4         rprojroot_2.0.2    ragg_1.1.2         KernSmooth_2.23-17
-    ## [65] stringi_1.5.3      Rcpp_1.0.5         vctrs_0.3.5        dbplyr_1.4.4      
-    ## [69] tidyselect_1.1.0   xfun_0.22
+    ##  [1] Rcpp_1.0.5         lubridate_1.7.9    lattice_0.20-41    pdftools_3.0.1    
+    ##  [5] class_7.3-17       utf8_1.1.4         assertthat_0.2.1   rprojroot_2.0.2   
+    ##  [9] digest_0.6.27      R6_2.5.0           cellranger_1.1.0   backports_1.1.10  
+    ## [13] reprex_1.0.0       evaluate_0.14      e1071_1.7-4        highr_0.8         
+    ## [17] httr_1.4.2         pillar_1.4.7       rlang_0.4.10       readxl_1.3.1      
+    ## [21] rstudioapi_0.13    blob_1.2.1         qpdf_1.1           rmarkdown_2.6     
+    ## [25] textshaping_0.3.4  munsell_0.5.0      broom_0.7.4        compiler_4.0.2    
+    ## [29] modelr_0.1.8       xfun_0.22          askpass_1.1        pkgconfig_2.0.3   
+    ## [33] systemfonts_1.0.1  htmltools_0.5.0    tidyselect_1.1.0   fansi_0.4.1       
+    ## [37] crayon_1.4.0       dbplyr_1.4.4       withr_2.4.1        grid_4.0.2        
+    ## [41] jsonlite_1.7.1     gtable_0.3.0       lifecycle_0.2.0    DBI_1.1.1         
+    ## [45] git2r_0.28.0       magrittr_2.0.1     units_0.6-7        scales_1.1.1      
+    ## [49] KernSmooth_2.23-17 cli_2.5.0          stringi_1.5.3      farver_2.0.3      
+    ## [53] fs_1.5.0           xml2_1.3.2         ellipsis_0.3.2     ragg_1.1.2        
+    ## [57] generics_0.1.0     vctrs_0.3.5        tools_4.0.2        glue_1.4.2        
+    ## [61] hms_1.0.0          yaml_2.2.1         colorspace_1.4-1   classInt_0.4-3    
+    ## [65] rvest_0.3.6        knitr_1.31         haven_2.3.1
