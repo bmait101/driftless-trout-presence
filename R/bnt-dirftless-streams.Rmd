@@ -11,21 +11,23 @@ output: github_document
 * fix infographic plots
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, 
+                      dev = "ragg_png", res = 500, retina = 1)
 ```
 
 ## Overview
 
 What is the percentage of Driftless area streams in which Brook, Brown, or Tiger Trout are present?
 
-```{r prep, echo=FALSE}
+```{r prep, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(here)
 library(wdnr.fmdb)
 set_fmdb_credentials()
 library(rgdal)  
 library(sf)
-library(glue)
+
+theme_set(theme_void(base_family = "sans"))
 ```
 
 
@@ -184,39 +186,6 @@ df_efforts_drift_class <- semi_join(df_efforts, df_surveys_drift_class, by = "su
   
 # clean up 
 rm(df_surveys); rm(df_efforts); rm(df_surveys_drift_sites_lines)
-```
-
-### plot of driftless survey sites and classified streams:
-
-```{r echo=FALSE, fig.align='center'}
-ggplot() + 
-  geom_sf(data = driftless, fill = "white") + 
-  geom_sf(data = lines_drift, aes(color = TROUT_CLAS), show.legend = "line") + 
-  geom_sf(data = df_surveys_drift_sites_unclassed, 
-          size = 1, alpha = 0.5, shape = 21, fill = "grey") + 
-  geom_sf(data = df_surveys_drift_sites_classed, aes(fill = TROUT_CLAS), 
-          show.legend = "point", size = 1, alpha = 0.5, shape = 21) + 
-  scale_colour_manual(
-    values = c("#53DC4D", "#00C5ff", "#004DA8"), 
-    guide = guide_legend(
-      override.aes = list(linetype = c("solid", "solid","solid"), 
-                          shape = c(NA, NA, NA),
-                          size = c(1,1,1)))
-    ) +
-  scale_fill_manual(
-    values = c("#53DC4D", "#00C5ff", "#004DA8", "grey"), 
-    guide = guide_legend(
-      override.aes = list(linetype = "blank",
-                          shape = 21, 
-                          size = 2))
-    ) +
-  labs(
-    # title = "Driftless Area survey locations", 
-    color = "Stream Class", 
-    fill = "Survey Site Class"
-    ) +
-  theme_void() + 
-  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 ### download fishraw data for classified streams in driftless region:
@@ -437,9 +406,9 @@ percent.wbics.symp.12 <-
 ```
 
 
-### plot presence/absence
+## Plot
 
-```{r eval=FALSE, fig.align='center', fig.width=10}
+```{r plot, fig.width=12, fig.height=5}
 panel_labels <- c(
   `brook_trout` = glue("Brook Trout ({percent.wbics.bkt}%)"),
   `brown_trout` = glue("Brown Trout ({percent.wbics.bnt}%)"),
@@ -466,22 +435,32 @@ ggplot() +
     ) +
   facet_wrap(vars(species), labeller = as_labeller(panel_labels), nrow = 1) +
   labs(
-    # title = "How common are trout in Driftless Area streams?",
-    title ="Percent of all classified and surveyed streams with trout present:",
-    # subtitle ="Percent of all classified and surveyed streams with trout present:",
-    # caption = "Note: light grey dots depict all surveys sites in the region",
+    title = "How common are trout in Driftless Area streams?",
+    # title ="Percent of all classified and surveyed streams with trout present:",
+    subtitle ="Percent of surveyed trout streams with trout present:",
+    caption = "Visualization: Bryan Maitland • Data: WI DNR Fisheries Managment (https://dnr.wisconsin.gov/)", 
     color = "Stream Class", 
     fill = "Trout Presence") + 
-  theme_void() + 
   theme(
-    plot.title = element_text(hjust=0.5, family="sans", size=18, margin=margin(0,0,10,0)), 
-    plot.subtitle = element_text(hjust=0, family="sans", size=12, margin=margin(0,0,10,0))
+    plot.title = element_text(hjust=0.5, size=18, face = "bold", margin=margin(0,0,5,0)), 
+    plot.subtitle = element_text(hjust=0.5, size=12, margin=margin(0,0,15,0)), 
+    plot.caption = element_text(hjust = .5,size = 10, margin = margin(35, 0, 0, 0)), 
+    strip.text = element_text(face = "bold")
     )
+```
 
+```{r save-and-convert}
 path <- here::here("plots", "driftless_trout_presence")
+
 ggsave(glue::glue("{path}.pdf"), width = 12, height = 5, device = cairo_pdf)
+
 pdftools::pdf_convert(pdf = glue::glue("{path}.pdf"),
             filenames = glue::glue("{path}.png"),
             format = "png", dpi = 300)
-  
+```
+
+```{r session}
+Sys.time()
+git2r::repository()
+sessionInfo()
 ```
