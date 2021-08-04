@@ -129,7 +129,7 @@ df_surveys_drift <-
   st_intersection(driftless)
 
 # make a simple xwalk for wbic and trout class
-xalk_wbic_troutclass <- 
+xwalk_wbic_troutclass <- 
   lines_drift %>% 
   st_drop_geometry() %>% 
   as_tibble() %>% 
@@ -148,46 +148,52 @@ rm(df_surveys); rm(df_efforts)
 
 ```{r nn-spatial-join-sites-to-lines, cache=TRUE}
 
-df_surveys_drift %>% 
-  left_join(xalk_wbic_troutclass, by = c("wbic" = "WBIC")) %>% 
-  as_tibble()
-
-# isolate unique survey site locations in driftless
-df_surveys_drift_sites <- 
+df_surveys_drift_class <- 
   df_surveys_drift %>% 
-  distinct(site.seq.no, .keep_all = TRUE)
-
-# # xwalk sites and trout classes
-# # join each site to its nearest line neighbor within 50 m
-# xwalk_sites_classes <-
-#   st_join(df_surveys_drift_sites, lines, join = nngeo::st_nn, k = 1, maxdist = 50)
-# 
-# # save to file
-# write_rds(xwalk_sites_classes, here("data", "xwalk_sites_classes.rds"))
-
-# load from file
-xwalk_sites_classes <-
-  here("data", "xwalk_sites_classes.rds") %>%
-  read_rds() %>%
-  st_drop_geometry() %>% 
+  left_join(xwalk_wbic_troutclass, by = c("wbic" = "WBIC")) %>% 
   as_tibble() %>% 
-  mutate(TROUT_CLAS = if_else(is.na(TROUT_CLAS), "Unclassified", TROUT_CLAS)) %>% 
-  select(site.seq.no, TROUT_CLAS) 
-xwalk_sites_classes
+  mutate(TROUT_CLAS = if_else(is.na(TROUT_CLAS), "Unclassified", TROUT_CLAS)) 
 
-# check classes
-xwalk_sites_classes %>% 
+# count of surveys on different class streams
+df_surveys_drift_class %>% 
   count(TROUT_CLAS)
 
-# add site classes to the survey data
-df_surveys_drift_class <- 
-  left_join(df_surveys_drift, xwalk_sites_classes, by = "site.seq.no") 
+# isolate unique survey site locations in driftless
+df_surveys_site_locs <- 
+  df_surveys_drift_class %>% 
+  distinct(site.seq.no, .keep_all = TRUE)
 
-# update site list with trout class added
-df_surveys_drift_sites <-
-  df_surveys_drift_class %>%
-  distinct(site.seq.no, .keep_all = TRUE) %>%
-  st_as_sf()
+# # # xwalk sites and trout classes
+# # # join each site to its nearest line neighbor within 50 m
+# # xwalk_sites_classes <-
+# #   st_join(df_surveys_drift_sites, lines, join = nngeo::st_nn, k = 1, maxdist = 50)
+# # 
+# # # save to file
+# # write_rds(xwalk_sites_classes, here("data", "xwalk_sites_classes.rds"))
+# 
+# # load from file
+# xwalk_sites_classes <-
+#   here("data", "xwalk_sites_classes.rds") %>%
+#   read_rds() %>%
+#   st_drop_geometry() %>% 
+#   as_tibble() %>% 
+#   mutate(TROUT_CLAS = if_else(is.na(TROUT_CLAS), "Unclassified", TROUT_CLAS)) %>% 
+#   select(site.seq.no, TROUT_CLAS) 
+# xwalk_sites_classes
+# 
+# # check classes
+# xwalk_sites_classes %>% 
+#   count(TROUT_CLAS)
+# 
+# # add site classes to the survey data
+# df_surveys_drift_class <- 
+#   left_join(df_surveys_drift, xwalk_sites_classes, by = "site.seq.no") 
+# 
+# # update site list with trout class added
+# df_surveys_drift_sites <-
+#   df_surveys_drift_class %>%
+#   distinct(site.seq.no, .keep_all = TRUE) %>%
+#   st_as_sf()
 ```
 
 
