@@ -300,39 +300,25 @@ n.surveyed.wbics.class12 <-
   pull()
 ```
 
-#### how many wbics in classified stream layer?
-
-```{r count-classified-wbics}
-# unique WBICS for all classed streams
-n.classed.wbics.123 <- length(unique(lines_drift$WBIC))
-
-# unique WBICS for 1-2 classed streams and set to object
-n.classed.wbics.12 <- 
-  lines_drift %>% 
-  st_drop_geometry() %>% 
-  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II") ) %>% 
-  summarise(across(c(WBIC), ~ length(unique(.x)))) %>% 
-  pull()
-```
-
 
 ### count of surveyed wbics in which trout are present:
 
 #### convert survey catch data to presence data:
 
 ```{r convert-to-pa}
-## note: this will add a zero for a species if a suryevy saw other species
+
 df_fish_drift_pa <-
   df_fish_drift %>% 
+  filter(!str_detect(wbic, "^999")) %>% 
   group_by(wbic, survey.seq.no, species) %>% 
   summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
   mutate(n = if_else(n > 1, 1, 0)) %>% 
   pivot_wider(names_from = species, values_from = n, values_fill = 0) %>%  
   mutate(
-    no_trout = case_when(brook_trout==0 & brown_trout==0 ~ 1, TRUE ~ 0), 
-    symp = case_when(brook_trout==1 & brown_trout==1 ~ 1, TRUE ~ 0), 
-    bkt_only = case_when(brook_trout==1 & brown_trout==0 ~ 1, TRUE ~ 0), 
-    bnt_only = case_when(brook_trout==0 & brown_trout==1 ~ 1, TRUE ~ 0)
+    no_trout = if_else(brook_trout==0 & brown_trout==0, 1, 0), 
+    symp = if_else(brook_trout==1 & brown_trout==1, 1, 0), 
+    bkt_only = if_else(brook_trout==1 & brown_trout==0, 1, 0), 
+    bnt_only = if_else(brook_trout==0 & brown_trout==1, 1, 0)
     ) %>% 
   pivot_longer(cols = 3:9, names_to = "species", values_to = "present") %>% 
   left_join(df_surveys_drift_class %>%
@@ -371,7 +357,12 @@ n.wbics.bnt.12 <-
   filter(species == "brown_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
+test <- 
+   df_fish_drift_pa %>% 
+  filter(TROUT_CLAS %in% c("CLASS I","CLASS II")) %>% 
+  filter(species == "brown_trout" & present == 1)
 
+length(unique(test$wbic))
 
 n.wbics.bkt <- 
   df_fish_drift_pa %>% 
@@ -459,26 +450,26 @@ n.wbics.notrout.123 <-
 
 ```{r}
 (percent.wbics.bnt <- round((n.wbics.bnt/n.surveyed.wbics) * 100, digits = 2))
-(percent.wbics.bnt.123 <- round((n.wbics.bnt.123/n.surveyed.wbics.class123) * 100, digits = 2))
+(percent.wbics.bnt.123 <- round((n.wbics.bnt.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
 (percent.wbics.bnt.12 <- round((n.wbics.bnt.12/n.surveyed.wbics.class12) * 100, digits = 2))
 
 (percent.wbics.bkt <- round((n.wbics.bkt/n.surveyed.wbics) * 100, digits = 2))
-(percent.wbics.bkt.123 <- round((n.wbics.bkt.123/n.surveyed.wbics.class123) * 100, digits = 2))
+(percent.wbics.bkt.123 <- round((n.wbics.bkt.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
 (percent.wbics.bkt.12 <- round((n.wbics.bkt.12/n.surveyed.wbics.class12) * 100, digits = 2))
 
 (percent.wbics.tgt <- round((n.wbics.tgt/n.surveyed.wbics) * 100, digits = 2))
-(percent.wbics.tgt.123 <- round((n.wbics.tgt.123/n.surveyed.wbics.class123) * 100, digits = 2))
+(percent.wbics.tgt.123 <- round((n.wbics.tgt.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
 (percent.wbics.tgt.12 <- round((n.wbics.tgt.12/n.surveyed.wbics.class12) * 100, digits = 2))
 
 (percent.wbics.smp <- round((n.wbics.smp/n.surveyed.wbics) * 100, digits = 2))
-(percent.wbics.smp.123 <- round((n.wbics.smp.123/n.surveyed.wbics.class123) * 100, digits = 2))
+(percent.wbics.smp.123 <- round((n.wbics.smp.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
 (percent.wbics.smp.12 <- round((n.wbics.smp.12/n.surveyed.wbics.class12) * 100, digits = 2))
 
-(percent.wbics.bkt.only <- round((n.wbics.bkt.only.123/n.surveyed.wbics.class123) * 100, digits = 2))
+(percent.wbics.bkt.only <- round((n.wbics.bkt.only.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
 
-(percent.wbics.bnt.only <- round((n.wbics.bnt.only.123/n.surveyed.wbics.class123) * 100, digits = 2))
+(percent.wbics.bnt.only <- round((n.wbics.bnt.only.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
 
-(percent.wbics.notrout <- round((n.wbics.notrout.123/n.surveyed.wbics.class123) * 100, digits = 2))
+(percent.wbics.notrout <- round((n.wbics.notrout.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
 
 
 percent.wbics.bkt.only + percent.wbics.bnt.only + percent.wbics.smp.123
