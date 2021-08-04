@@ -32,7 +32,7 @@ theme_set(theme_void(base_family = "sans"))
 
 Download all surveys from 1994-2020 on streams using backpack and stream shockers, retaining only surveys that are complete and proofed:
 
-```{r pull-save-raw-surveys-efforts-data, echo=FALSE}
+```{r pull-save-raw-survey-effort-data}
 # # params for pulling surveys and efforts
 # yrs <- list(1994:1999,2000:2005,2006:2011,2012:2016,2017:2020)
 # waterbody_types <- c( "wadable_stream", "non-wadable_stream", "stream")
@@ -60,7 +60,7 @@ df_surveys_raw <- read_rds(here("data", "surveys_raw_20210803.rds"))
 df_efforts_raw <- read_rds(here("data", "efforts_raw_20210803.rds"))
 ```
 
-```{r clean-survs-effs, eval=TRUE, echo=FALSE}
+```{r filter-for-proofed-surveys-w-trout-targets}
 # # check surveys with no match in the efforts (which are for electofishing only)
 # df_surveys_raw %>% 
 #   anti_join(df_efforts_raw, by = "survey.seq.no") 
@@ -77,15 +77,15 @@ targ.survs <- c(
   "historical_data_load_status_unknown")
 df_surveys <- filter(df_surveys, survey.status %in% targ.survs)
 
-# set target species
+
+# filter efforts
 targ.spp <- c(
   "all_species","gamefish_species","gamefish_panfish",
   "trout_spp","brown_trout","brook_trout","rainbow_trout")
 
-# filter
 df_efforts <- 
   df_efforts_raw %>% 
-  semi_join(df_surveys, by = "survey.seq.no") %>% 
+  semi_join(df_surveys, by = "survey.seq.no") %>%
   filter(target.species %in% targ.spp | secondary.target.species %in% targ.spp) %>% 
   filter(site.seq.no != 315) 
 
@@ -98,9 +98,9 @@ rm(targ.survs); rm(targ.spp)
 ```
 
 
-### clip survey data to driftless region:
+### clip data to driftless region:
 
-```{r load-lines-polys, cache=TRUE, results = 'hide', echo=FALSE}
+```{r load-driftless-polys, cache=TRUE, results = 'hide', echo=FALSE}
 # load driftless polygon
 driftless <- 
   here("data", "ecoregions","wi_eco_l3.shp") %>% 
@@ -115,7 +115,7 @@ lines <-
   st_transform(crs = 3071) 
 ```
 
-```{r clip-data-to-driftless, cache=TRUE}
+```{r clip-surveys-effs-to-driftless, cache=TRUE}
 # clip the classified trout streams to driftless region
 lines_drift <- 
   lines %>% 
@@ -127,61 +127,69 @@ df_surveys_drift <-
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
   st_transform(crs = 3071) %>% 
   st_intersection(driftless)
+
+# make a simple xwalk for wbic and trout class
+xalk_wbic_troutclass <- 
+  lines_drift %>% 
+  st_drop_geometry() %>% 
+  as_tibble() %>% 
+  distinct(WBIC, .keep_all = TRUE) %>% 
+  select(WBIC, TROUT_CLAS)
+
+# filter efforts for driftless surveys
+df_efforts_drift <- semi_join(df_efforts, df_surveys_drift, by = "survey.seq.no")
+  
+# clean up 
+rm(df_surveys); rm(df_efforts)
 ```
+
 
 ### join surevys sites to stream lines
 
-We only want surveys on classified trout streams, so we need to link survey sites to streams to see if they are on classified water or not:
-```{r nn-spatial-join-sites-to-lines, cache=TRUE, echo=FALSE}
+```{r nn-spatial-join-sites-to-lines, cache=TRUE}
+
+df_surveys_drift %>% 
+  left_join(xalk_wbic_troutclass, by = c("wbic" = "WBIC")) %>% 
+  as_tibble()
+
 # isolate unique survey site locations in driftless
 df_surveys_drift_sites <- 
   df_surveys_drift %>% 
   distinct(site.seq.no, .keep_all = TRUE)
 
+# # xwalk sites and trout classes
 # # join each site to its nearest line neighbor within 50 m
-# df_surveys_drift_sites_lines <-
+# xwalk_sites_classes <-
 #   st_join(df_surveys_drift_sites, lines, join = nngeo::st_nn, k = 1, maxdist = 50)
 # 
 # # save to file
-# write_rds(df_surveys_drift_sites_lines, here("data", "df_surveys_drift_sites_lines.rds"))
+# write_rds(xwalk_sites_classes, here("data", "xwalk_sites_classes.rds"))
 
 # load from file
-df_surveys_drift_sites_lines <-
-  here("data", "df_surveys_drift_sites_lines.rds") %>%
+xwalk_sites_classes <-
+  here("data", "xwalk_sites_classes.rds") %>%
   read_rds() %>%
   st_drop_geometry() %>% 
-  select(site.seq.no, TROUT_CLAS)
+  as_tibble() %>% 
+  mutate(TROUT_CLAS = if_else(is.na(TROUT_CLAS), "Unclassified", TROUT_CLAS)) %>% 
+  select(site.seq.no, TROUT_CLAS) 
+xwalk_sites_classes
 
 # check classes
-df_surveys_drift_sites_lines %>% count(TROUT_CLAS)
+xwalk_sites_classes %>% 
+  count(TROUT_CLAS)
 
-# add site classes to the survey data and remove NAs (unclassifed streams)
+# add site classes to the survey data
 df_surveys_drift_class <- 
-  left_join(df_surveys_drift, df_surveys_drift_sites_lines, by = "site.seq.no") %>% 
-  as_tibble() %>% 
-  filter(!is.na(TROUT_CLAS)) 
+  left_join(df_surveys_drift, xwalk_sites_classes, by = "site.seq.no") 
 
-# surveys sites for those on classified water
-df_surveys_drift_sites_classed <-
-  df_surveys_drift_class %>% 
-  distinct(site.seq.no, .keep_all = TRUE) %>% 
+# update site list with trout class added
+df_surveys_drift_sites <-
+  df_surveys_drift_class %>%
+  distinct(site.seq.no, .keep_all = TRUE) %>%
   st_as_sf()
-
-# unclassed sites
-df_surveys_drift_sites_unclassed <-
-  df_surveys_drift_sites %>% 
-  filter(!site.seq.no %in% df_surveys_drift_sites_classed$site.seq.no)
 ```
 
-### filter efforts for surveys on classified streams
-
-```{r}
-# filter efforts for driftless surveys on classified streams
-df_efforts_drift_class <- semi_join(df_efforts, df_surveys_drift_class, by = "survey.seq.no")
-  
-# clean up 
-rm(df_surveys); rm(df_efforts); rm(df_surveys_drift_sites_lines)
-```
 
 ### download fishraw data for classified streams in driftless region:
 
@@ -205,70 +213,82 @@ rm(df_surveys); rm(df_efforts); rm(df_surveys_drift_sites_lines)
 df_fish_drift <- read_rds(here("data", "fish_raw_20210803.rds"))
 ```
 
-### clean fish data
+### clean and subset trout data
+
+#### add zero for surveys where no fish captured contingent on target species
 
 ```{r df-of-zeros, echo=FALSE}
-# df_trout_0s <-
-#   bind_rows(
-#     # all species and game fish targets
-#     df_fish_drift %>%
-#       filter(target.species %in% c("all_species","gamefish_species"), 
-#              species == "no_fish_captured") %>%
-#       mutate(
-#         species = "brook_trout",
-#         number.of.fish = 0,
-#         ),
-#     df_fish_drift %>%
-#       filter(target.species %in% c("all_species","gamefish_species"), 
-#              species == "no_fish_captured") %>%
-#       mutate(
-#         species = "brown_trout",
-#         number.of.fish = 0, 
-#         ),
-#     # brook trout targets
-#     df_fish_drift %>%
-#       filter(target.species %in% c("brook_trout"), 
-#              species == "no_fish_captured") %>%
-#       mutate(
-#         species = "brook_trout",
-#         number.of.fish = 0, 
-#         ),
-#     # brown trout targets
-#     df_fish_drift %>%
-#       filter(target.species %in% c("brown_trout"), 
-#              species == "no_fish_captured") %>%
-#       mutate(
-#         species = "brown_trout",
-#         number.of.fish = 0, 
-#         )
-#   )
+df_trout_0s <-
+  bind_rows(
+    # all species and game fish targets
+    df_fish_drift %>%
+      filter(target.species %in% c("all_species","gamefish_species"),
+             species == "no_fish_captured") %>%
+      mutate(
+        species = "brook_trout",
+        number.of.fish = 0,
+        ),
+    df_fish_drift %>%
+      filter(target.species %in% c("all_species","gamefish_species"),
+             species == "no_fish_captured") %>%
+      mutate(
+        species = "brown_trout",
+        number.of.fish = 0,
+        ),
+    # brook trout targets
+    df_fish_drift %>%
+      filter(target.species %in% c("brook_trout"),
+             species == "no_fish_captured") %>%
+      mutate(
+        species = "brook_trout",
+        number.of.fish = 0,
+        ),
+    # brown trout targets
+    df_fish_drift %>%
+      filter(target.species %in% c("brown_trout"),
+             species == "no_fish_captured") %>%
+      mutate(
+        species = "brown_trout",
+        number.of.fish = 0,
+        )
+  )
 ```
 
 ```{r update-df}
 df_fish_drift <- 
   df_fish_drift %>% 
   filter(!species == "no_fish_captured") %>%
-  # bind_rows(df_trout_0s) %>%  
+  bind_rows(df_trout_0s) %>%
   mutate(species = if_else(species == "tiger_trout_(i21_x_i22)", "tiger_trout", species)) %>% 
   filter(species %in% c("brook_trout","brown_trout","tiger_trout"))
 ```
 
 ## 2. Count of surveys and streams (wbics)
 
-#### how many surveys and surevyed wbics?
+#### how many surveys and surveyed wbics?
 
-```{r}
+```{r count-surveyed-wbics}
 # unique surveys and wbics in driftles surveys data
 df_surveys_drift_class %>% 
+  st_drop_geometry() %>% 
   summarise(across(c(survey.seq.no, wbic), ~ length(unique(.x))))
 
 # set to objects
 n.surveys <- length(unique(df_surveys_drift_class$survey.seq.no))
 n.surveyed.wbics <- length(unique(df_surveys_drift_class$wbic))
 
-# unique surveys and wbics in driftles surveys data class 1-2
-n.surveyed.wbics.12 <- 
+# unique surveys and wbics in driftles surveys data class 1-3
+n.surveyed.wbics.class123 <- 
   df_surveys_drift_class %>% 
+  st_drop_geometry() %>% 
+  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II", "CLASS III")) %>% 
+  summarise(across(c(wbic), ~ length(unique(.x)))) %>% 
+  pull()
+
+# unique surveys and wbics in driftles surveys data class 1-2
+n.surveyed.wbics.class12 <- 
+  df_surveys_drift_class %>% 
+  st_drop_geometry() %>% 
   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
   summarise(across(c(wbic), ~ length(unique(.x)))) %>% 
   pull()
@@ -276,16 +296,8 @@ n.surveyed.wbics.12 <-
 
 #### how many wbics in classified stream layer?
 
-```{r echo=FALSE}
-# count of lines in each stream class (total = 1011)
-lines_drift %>% st_drop_geometry() %>% count(TROUT_CLAS)
-
+```{r count-classified-wbics}
 # unique WBICS for all classed streams
-lines_drift %>% 
-  st_drop_geometry() %>% 
-  summarise(across(c(WBIC), ~ length(unique(.x))))
-
-# set to object
 n.classed.wbics <- length(unique(lines_drift$WBIC))
 
 # unique WBICS for 1-2 classed streams and set to object
@@ -300,14 +312,16 @@ n.classed.wbics <- length(unique(lines_drift$WBIC))
 
 ### count of surveyed wbics in which trout are present:
 
-#### convert catch data to presence data:
+#### convert survey catch data to presence data:
+
 ```{r convert-to-pa}
+## note: this will add a zero for a species if a suryevy saw other species
 df_fish_drift_pa <-
   df_fish_drift %>% 
   group_by(wbic, survey.seq.no, species) %>% 
   summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
   mutate(n = if_else(n > 1, 1, 0)) %>% 
-  pivot_wider(names_from = species, values_from = n, values_fill = 0) %>%
+  pivot_wider(names_from = species, values_from = n, values_fill = 0) %>%  
   mutate(symp = brook_trout + brown_trout) %>%
   mutate(symp = if_else(symp == 2, 1, 0)) %>% 
   pivot_longer(cols = 3:6, names_to = "species", values_to = "present") %>% 
@@ -315,6 +329,7 @@ df_fish_drift_pa <-
               select(survey.seq.no, TROUT_CLAS, geometry), 
             by = "survey.seq.no") %>% 
   st_as_sf()
+df_fish_drift_pa
 
 # df_fish_drift_pa_wide <- 
 #   df_fish_drift_pa %>%
@@ -373,7 +388,8 @@ n.wbics.symp.12 <-
 #### brown trout 
 ```{r}
 (percent.wbics.bnt <- round((n.wbics.bnt/n.surveyed.wbics) * 100, digits = 2))
-(percent.wbics.bnt.12 <- round((n.wbics.bnt.12/n.surveyed.wbics.12) * 100, digits = 2))
+(percent.wbics.bnt.123 <- round((n.wbics.bnt/n.surveyed.wbics.class123) * 100, digits = 2))
+(percent.wbics.bnt.12 <- round((n.wbics.bnt.12/n.surveyed.wbics.class12) * 100, digits = 2))
 ```
 
 #### brook trout
