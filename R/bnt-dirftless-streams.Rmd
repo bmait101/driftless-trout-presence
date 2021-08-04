@@ -18,7 +18,7 @@ What is the percentage of Driftless area streams in which Brook, Brown, or Tiger
 library(tidyverse)
 library(here)
 library(wdnr.fmdb)
-# set_fmdb_credentials()
+set_fmdb_credentials()
 library(rgdal)  
 library(sf)
 
@@ -146,7 +146,7 @@ rm(df_surveys); rm(df_efforts)
 
 ### join surevys sites to stream lines
 
-```{r nn-spatial-join-sites-to-lines, cache=TRUE}
+```{r join-sites-to-lines, cache=TRUE}
 
 # join trout class information to each survey
 df_surveys_drift_class <- 
@@ -160,68 +160,33 @@ df_surveys_drift_class %>%
   count(TROUT_CLAS)
 
 # isolate unique survey site locations in driftless
-df_surveys_site_locs <- 
-  df_surveys_drift_class %>% 
-  distinct(site.seq.no, .keep_all = TRUE)
-
-# # # xwalk sites and trout classes
-# # # join each site to its nearest line neighbor within 50 m
-# # xwalk_sites_classes <-
-# #   st_join(df_surveys_drift_sites, lines, join = nngeo::st_nn, k = 1, maxdist = 50)
-# # 
-# # # save to file
-# # write_rds(xwalk_sites_classes, here("data", "xwalk_sites_classes.rds"))
-# 
-# # load from file
-# xwalk_sites_classes <-
-#   here("data", "xwalk_sites_classes.rds") %>%
-#   read_rds() %>%
-#   st_drop_geometry() %>% 
-#   as_tibble() %>% 
-#   mutate(TROUT_CLAS = if_else(is.na(TROUT_CLAS), "Unclassified", TROUT_CLAS)) %>% 
-#   select(site.seq.no, TROUT_CLAS) 
-# xwalk_sites_classes
-# 
-# # check classes
-# xwalk_sites_classes %>% 
-#   count(TROUT_CLAS)
-# 
-# # add site classes to the survey data
-# df_surveys_drift_class <- 
-#   left_join(df_surveys_drift, xwalk_sites_classes, by = "site.seq.no") 
-# 
-# # update site list with trout class added
-# df_surveys_drift_sites <-
-#   df_surveys_drift_class %>%
-#   distinct(site.seq.no, .keep_all = TRUE) %>%
-#   st_as_sf()
+# df_surveys_site_locs <- 
+#   df_surveys_drift_class %>% 
+#   distinct(site.seq.no, .keep_all = TRUE)
 ```
 
-### download fishraw data for classified streams in driftless region:
+### download fishraw data
 
 ```{r pull-raw-fish, echo=FALSE}
-# # set chunks of visits seqs for pulling fish data
-# vs <- unique(df_efforts_drift_class$visit.fish.seq.no) 
-# vs_chunks <- split(vs, ceiling(seq_along(vs)/1000))  
-# 
-# df_fish_drift <- 
-#   vs_chunks %>% 
-#   map_df(~get_fmdb_fishraw(visit_seq = .))
-# 
-# # clean up
-# rm(vs); rm(vs_chunks); 
+# set chunks of visits seqs for pulling fish data
+vs <- unique(df_efforts_drift$visit.fish.seq.no)
+vs_chunks <- split(vs, ceiling(seq_along(vs)/1000))
+
+df_fish_drift <-
+  vs_chunks %>%
+  map_df(~get_fmdb_fishraw(visit_seq = .))
+
+# clean up
+rm(vs); rm(vs_chunks);
 # rm(length_deleted_rows); rm(length_warning_rows)
-# 
-# # write to file
-# write_rds(df_fish_drift, here("data", "fish_raw_20210803.rds"))
+
+# write to file
+write_rds(df_fish_drift, here("data", "fish_raw_20210804.rds"))
 
 # load
-df_fish_drift <- read_rds(here("data", "fish_raw_20210803.rds"))
+df_fish_drift <- read_rds(here("data", "fish_raw_20210804.rds"))
+
 ```
-
-### clean and subset trout data
-
-Add zero for surveys where no fish captured contingent on target species
 
 ```{r df-of-zeros, echo=FALSE}
 df_trout_0s <-
@@ -261,218 +226,279 @@ df_trout_0s <-
 ```
 
 ```{r add-zeros-and-subset-trout}
-df_fish_drift <- 
+df_fish_drift_trout <- 
   df_fish_drift %>% 
-  filter(!species == "no_fish_captured") %>%
-  bind_rows(df_trout_0s) %>%
+  filter(!species == "no_fish_captured") %>% bind_rows(df_trout_0s) %>%
   mutate(species = if_else(species == "tiger_trout_(i21_x_i22)", "tiger_trout", species)) %>% 
-  filter(species %in% c("brook_trout","brown_trout","tiger_trout"))
+  filter(species %in% c("brook_trout","brown_trout","tiger_trout")) %>% 
+  filter(!str_detect(wbic, "^999"))
 
 rm(df_trout_0s)
 ```
 
 
-## 2. Count of surveys and streams (wbics)
+```{r missing}
 
-#### how many surveys and surveyed wbics?
-
-```{r count-surveyed-wbics}
-# unique surveys and wbics in driftles surveys data
-df_surveys_drift_class %>% 
-  summarise(across(c(survey.seq.no, wbic), ~ length(unique(.x))))
-
-# set to objects
-n.surveys <- length(unique(df_surveys_drift_class$survey.seq.no))
-n.surveyed.wbics <- length(unique(df_surveys_drift_class$wbic))
-
-# unique surveys and wbics in driftles surveys data class 1-3
-n.surveyed.wbics.class123 <- 
-  df_surveys_drift_class %>% 
-  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II", "CLASS III")) %>% 
-  summarise(across(c(wbic), ~ length(unique(.x)))) %>% 
+# 3 surveys do not have any fish data
+# the other 27 missing wbics get deleted when fioltering for trout
+missing_fish_wbics <- 
+  anti_join(
+    df_surveys_drift_class %>% 
+      filter(TROUT_CLAS %in% c("CLASS I", "CLASS II", "CLASS III")) %>% 
+      distinct(wbic), 
+    df_fish_drift_trout %>% 
+      left_join(xwalk_wbic_troutclass , by = c("wbic"="WBIC")) %>% 
+      filter(TROUT_CLAS %in% c("CLASS I", "CLASS II", "CLASS III")) %>% 
+      distinct(wbic), 
+    by = "wbic") %>% 
   pull()
 
-# unique surveys and wbics in driftles surveys data class 1-2
-n.surveyed.wbics.class12 <- 
+
+missing_fish_survs <-
   df_surveys_drift_class %>% 
-  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
-  summarise(across(c(wbic), ~ length(unique(.x)))) %>% 
-  pull()
+  filter(wbic %in% missing_fish_wbics)
+
+missing_efforts <- 
+  df_efforts_drift %>% 
+  filter(wbic %in% missing_fish_wbics)
+
+
+missing_efforts$visit.fish.seq.no %in% vs
+
+missing_data <- 
+  get_fmdb_fishraw(visit_seq = missing_efforts$visit.fish.seq.no)
+  
+missing_data %>% 
+  filter(wbic %in% missing_fish_wbics)
+
 ```
 
 
-### count of surveyed wbics in which trout are present:
+## 2. Count of surveys and streams (wbics)
 
-#### convert survey catch data to presence data:
+### count of surveyed wbics in which trout are present:
 
 ```{r convert-to-pa}
 
-df_fish_drift_pa <-
-  df_fish_drift %>% 
-  filter(!str_detect(wbic, "^999")) %>% 
-  group_by(wbic, survey.seq.no, species) %>% 
+# df_fish_drift_pa <-
+#   df_fish_drift %>% 
+#   filter(!str_detect(wbic, "^999")) %>% 
+#   group_by(wbic, survey.seq.no, species) %>% 
+#   summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
+#   mutate(n = if_else(n > 1, 1, 0)) %>% 
+#   pivot_wider(names_from = species, values_from = n, values_fill = 0) %>%  
+#   mutate(
+#     no_trout = if_else(brook_trout==0 & brown_trout==0, 1, 0), 
+#     symp = if_else(brook_trout==1 & brown_trout==1, 1, 0), 
+#     bkt_only = if_else(brook_trout==1 & brown_trout==0, 1, 0), 
+#     bnt_only = if_else(brook_trout==0 & brown_trout==1, 1, 0)
+#     ) %>% 
+#   pivot_longer(cols = 3:9, names_to = "species", values_to = "present") %>% 
+#   left_join(df_surveys_drift_class %>%
+#               select(survey.seq.no, TROUT_CLAS, geometry), 
+#             by = "survey.seq.no") %>% 
+#   st_as_sf()
+# df_fish_drift_pa
+# 
+# df_fish_drift_pa %>% 
+#   group_by(wbic, species) %>% 
+#   summarise(n = sum(present), .groups = "drop") %>% 
+#   mutate(n = if_else(n > 1, 1, 0))
+
+df_fish_drift_trout_pa <-
+  df_fish_drift_trout %>% 
+  group_by(wbic, species) %>% 
   summarise(n = sum((number.of.fish)), .groups = "drop") %>% 
   mutate(n = if_else(n > 1, 1, 0)) %>% 
   pivot_wider(names_from = species, values_from = n, values_fill = 0) %>%  
   mutate(
-    no_trout = if_else(brook_trout==0 & brown_trout==0, 1, 0), 
-    symp = if_else(brook_trout==1 & brown_trout==1, 1, 0), 
-    bkt_only = if_else(brook_trout==1 & brown_trout==0, 1, 0), 
+    no_trout = if_else(brook_trout==0 & brown_trout==0, 1, 0),
+    symp = if_else(brook_trout==1 & brown_trout==1, 1, 0),
+    bkt_only = if_else(brook_trout==1 & brown_trout==0, 1, 0),
     bnt_only = if_else(brook_trout==0 & brown_trout==1, 1, 0)
-    ) %>% 
-  pivot_longer(cols = 3:9, names_to = "species", values_to = "present") %>% 
+    ) %>%
+  pivot_longer(cols = 2:8, names_to = "species", values_to = "present") %>% 
   left_join(df_surveys_drift_class %>%
-              select(survey.seq.no, TROUT_CLAS, geometry), 
-            by = "survey.seq.no") %>% 
-  st_as_sf()
-df_fish_drift_pa
-
-
-df_fish_drift_pa %>% filter(species=="bnt_only")
-# df_fish_drift_pa_wide <- 
-#   df_fish_drift_pa %>%
-#   st_drop_geometry() %>%
-#   pivot_wider(names_from = species, values_from = n, values_fill = 0) %>%
-#   mutate(symp = brook_trout + brown_trout) %>%
-#   mutate(symp = if_else(symp == 2, 1, 0))
+              select(wbic, TROUT_CLAS), 
+            by = "wbic")
 
 ```
 
-#### number wbics with trout present
 ```{r count-wbics-with-trout-present}
 n.wbics.bnt <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(species == "brown_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.bnt.123 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II","CLASS III")) %>% 
   filter(species == "brown_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.bnt.12 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II")) %>% 
   filter(species == "brown_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
-test <- 
-   df_fish_drift_pa %>% 
-  filter(TROUT_CLAS %in% c("CLASS I","CLASS II")) %>% 
-  filter(species == "brown_trout" & present == 1)
-
-length(unique(test$wbic))
-
 n.wbics.bkt <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(species == "brook_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.bkt.123 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II","CLASS III")) %>% 
   filter(species == "brook_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.bkt.12 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II")) %>% 
   filter(species == "brook_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 
 n.wbics.tgt <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(species == "tiger_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.tgt.123 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II","CLASS III")) %>% 
   filter(species == "tiger_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.tgt.12 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II")) %>% 
   filter(species == "tiger_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 
 n.wbics.smp <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(species == "symp" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.smp.123 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II","CLASS III")) %>% 
   filter(species == "symp" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.smp.12 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II")) %>% 
   filter(species == "symp" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 
 n.wbics.smp.123 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II","CLASS III")) %>% 
   filter(species == "symp" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 
 n.wbics.bkt.only.123 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II","CLASS III")) %>% 
   filter(species == "bkt_only" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.bnt.only.123 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II","CLASS III")) %>% 
   filter(species == "bnt_only" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 n.wbics.notrout.123 <- 
-  df_fish_drift_pa %>% 
+  df_fish_drift_trout_pa %>% 
   filter(TROUT_CLAS %in% c("CLASS I","CLASS II","CLASS III")) %>% 
   filter(species == "no_trout" & present == 1) %>% 
   pull(wbic) %>% unique() %>% length()
 
 ```
 
+#### number of surveyed wbics
+
+```{r count-surveyed-wbics}
+# # unique surveys and wbics in driftles surveys data
+# n.surveyed.wbics <- length(unique(df_surveys_drift_class$wbic))
+# 
+# # unique surveys and wbics in driftles surveys data class 1-3
+# n.surveyed.wbics.class123 <- 
+#   df_surveys_drift_class %>% 
+#   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II", "CLASS III")) %>% 
+#   summarise(across(c(wbic), ~ length(unique(.x)))) %>% 
+#   pull()
+# 
+# # unique surveys and wbics in driftles surveys data class 1-2
+# n.surveyed.wbics.class12 <- 
+#   df_surveys_drift_class %>% 
+#   filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
+#   summarise(across(c(wbic), ~ length(unique(.x)))) %>% 
+#   pull()
+
+
+# unique surveys and wbics in driftles surveys data class 1-3
+n.fish.wbics <- 
+  df_fish_drift_trout_pa %>% 
+  summarise(across(c(wbic), ~ length(unique(.x)))) %>% 
+  pull()
+
+# unique surveys and wbics in driftles surveys data class 1-3
+n.fish.wbics.class123 <- 
+  df_fish_drift_trout_pa %>% 
+  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II", "CLASS III")) %>% 
+  summarise(across(c(wbic), ~ length(unique(.x)))) %>% 
+  pull()
+
+# unique surveys and wbics in driftles surveys data class 1-2
+n.fish.wbics.class12 <- 
+  df_fish_drift_trout_pa %>% 
+  filter(TROUT_CLAS %in% c("CLASS I", "CLASS II")) %>% 
+  summarise(across(c(wbic), ~ length(unique(.x)))) %>% 
+  pull()
+
+```
+
+
 
 ## 4. calculate percentages
 
 ```{r}
-(percent.wbics.bnt <- round((n.wbics.bnt/n.surveyed.wbics) * 100, digits = 2))
-(percent.wbics.bnt.123 <- round((n.wbics.bnt.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
-(percent.wbics.bnt.12 <- round((n.wbics.bnt.12/n.surveyed.wbics.class12) * 100, digits = 2))
+# (percent.wbics.bnt <- round((n.wbics.bnt/n.surveyed.wbics) * 100, digits = 2))
+(percent.wbics.bnt.123 <- round((n.wbics.bnt.123/n.fish.wbics.class123) * 100, digits = 2))
+# (percent.wbics.bnt.12 <- round((n.wbics.bnt.12/n.fish.wbics.class12) * 100, digits = 2))
 
-(percent.wbics.bkt <- round((n.wbics.bkt/n.surveyed.wbics) * 100, digits = 2))
-(percent.wbics.bkt.123 <- round((n.wbics.bkt.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
-(percent.wbics.bkt.12 <- round((n.wbics.bkt.12/n.surveyed.wbics.class12) * 100, digits = 2))
+# (percent.wbics.bkt <- round((n.wbics.bkt/n.surveyed.wbics) * 100, digits = 2))
+(percent.wbics.bkt.123 <- round((n.wbics.bkt.123/n.fish.wbics.class123) * 100, digits = 2))
+# (percent.wbics.bkt.12 <- round((n.wbics.bkt.12/n.fish.wbics.class12) * 100, digits = 2))
 
-(percent.wbics.tgt <- round((n.wbics.tgt/n.surveyed.wbics) * 100, digits = 2))
-(percent.wbics.tgt.123 <- round((n.wbics.tgt.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
-(percent.wbics.tgt.12 <- round((n.wbics.tgt.12/n.surveyed.wbics.class12) * 100, digits = 2))
+# (percent.wbics.tgt <- round((n.wbics.tgt/n.surveyed.wbics) * 100, digits = 2))
+(percent.wbics.tgt.123 <- round((n.wbics.tgt.123/n.fish.wbics.class123) * 100, digits = 2))
+# (percent.wbics.tgt.12 <- round((n.wbics.tgt.12/n.fish.wbics.class12) * 100, digits = 2))
 
-(percent.wbics.smp <- round((n.wbics.smp/n.surveyed.wbics) * 100, digits = 2))
-(percent.wbics.smp.123 <- round((n.wbics.smp.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
-(percent.wbics.smp.12 <- round((n.wbics.smp.12/n.surveyed.wbics.class12) * 100, digits = 2))
+# (percent.wbics.smp <- round((n.wbics.smp/n.surveyed.wbics) * 100, digits = 2))
+(percent.wbics.smp.123 <- round((n.wbics.smp.123/n.fish.wbics.class123) * 100, digits = 2))
+# (percent.wbics.smp.12 <- round((n.wbics.smp.12/n.surveyed.wbics.class12) * 100, digits = 2))
 
-(percent.wbics.bkt.only <- round((n.wbics.bkt.only.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
+(percent.wbics.bkt.only <- round((n.wbics.bkt.only.123/n.fish.wbics.class123) * 100, digits = 2))
 
-(percent.wbics.bnt.only <- round((n.wbics.bnt.only.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
+(percent.wbics.bnt.only <- round((n.wbics.bnt.only.123/n.fish.wbics.class123) * 100, digits = 2))
 
-(percent.wbics.notrout <- round((n.wbics.notrout.123/n.surveyed.wbics.fish.class123) * 100, digits = 2))
+(percent.wbics.notrout <- round((n.wbics.notrout.123/n.fish.wbics.class123) * 100, digits = 2))
 
 
-percent.wbics.bkt.only + percent.wbics.bnt.only + percent.wbics.smp.123
+percent.wbics.bkt.only + percent.wbics.bnt.only + percent.wbics.smp.123 + percent.wbics.notrout
+
+```
+
+```{r}
 
 ```
 
