@@ -60,8 +60,8 @@ df_efforts_raw <- read_rds(here("data", "efforts_raw_20210803.rds"))
 
 ```{r filter-for-proofed-surveys-w-trout-targets}
 # # check surveys with no match in the efforts (which are for electofishing only)
-# df_surveys_raw %>% 
-#   anti_join(df_efforts_raw, by = "survey.seq.no") 
+# df_surveys_raw %>%
+#   anti_join(df_efforts_raw, by = "survey.seq.no")
 # # these are IBI surveys or those with efforts that are "multiple_gear_types"
 
 # filter for unique surveys in the efforts data
